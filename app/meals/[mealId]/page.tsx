@@ -1,0 +1,99 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { MacroBar } from "../../_components/MacroBar";
+import { mealOptions, type MealId } from "../../_lib/mock-data";
+import { getCurrentUser, getMealEntries } from "../../../db/queries";
+
+// Reads today's date and live food-log data — must render per-request.
+export const dynamic = "force-dynamic";
+
+export default async function MealSummaryPage(props: PageProps<"/meals/[mealId]">) {
+  const { mealId } = await props.params;
+  const meal = mealOptions.find((option) => option.id === mealId);
+
+  if (!meal) {
+    notFound();
+  }
+
+  const user = await getCurrentUser();
+  const items = await getMealEntries(user.id, mealId as MealId);
+
+  const totals = items.reduce(
+    (sum, item) => ({
+      calories: sum.calories + item.calories,
+      protein: sum.protein + item.proteinG,
+      carbs: sum.carbs + item.carbsG,
+      fat: sum.fat + item.fatG,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+  const time = items.length
+    ? new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(
+        items[0].loggedAt
+      )
+    : null;
+
+  return (
+    <main className="flex flex-col gap-5 px-5 pb-8 pt-6">
+      <header className="flex items-center gap-3">
+        <Link
+          href="/"
+          aria-label="Back to dashboard"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4.5 w-4.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m15 18-6-6 6-6" />
+          </svg>
+        </Link>
+        <div>
+          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{meal.name}</h1>
+          {time && <p className="text-sm text-zinc-500 dark:text-zinc-400">{time}</p>}
+        </div>
+      </header>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <p className="text-3xl font-bold tabular-nums text-zinc-900 dark:text-zinc-50">
+          {totals.calories} <span className="text-base font-normal text-zinc-400">kcal total</span>
+        </p>
+        <div className="mt-4 flex flex-col gap-3">
+          <MacroBar label="Protein" grams={totals.protein} kind="protein" />
+          <MacroBar label="Carbs" grams={totals.carbs} kind="carbs" />
+          <MacroBar label="Fat" grams={totals.fat} kind="fat" />
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Logged items</h2>
+          <Link
+            href={`/add-food?meal=${meal.id}`}
+            className="text-sm font-medium text-emerald-600 dark:text-emerald-400"
+          >
+            + Add food
+          </Link>
+        </div>
+
+        <ul className="flex flex-col divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white shadow-sm dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
+          {items.map((item) => (
+            <li key={item.id} className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-zinc-900 dark:text-zinc-50">{item.name}</p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  {item.quantity} · P {item.proteinG}g · C {item.carbsG}g · F {item.fatG}g
+                </p>
+              </div>
+              <p className="shrink-0 font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                {item.calories} <span className="text-sm font-normal text-zinc-400">kcal</span>
+              </p>
+            </li>
+          ))}
+          {items.length === 0 && (
+            <li className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              Nothing logged for this meal yet.
+            </li>
+          )}
+        </ul>
+      </section>
+    </main>
+  );
+}
