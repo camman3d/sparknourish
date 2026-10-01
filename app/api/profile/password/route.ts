@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, updateUser } from "../../../../db/queries";
+import { updateUser } from "../../../../db/queries";
 import { hashPassword, verifyPassword } from "../../../../db/password";
+import { getSessionUser } from "../../../_lib/auth";
 
 export async function POST(request: Request) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+
   const { currentPassword, newPassword } = (await request.json()) as {
     currentPassword?: string;
     newPassword?: string;
@@ -12,7 +16,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
   }
 
-  const user = await getCurrentUser();
   if (!verifyPassword(currentPassword, user.passwordHash)) {
     return NextResponse.json({ error: "Current password is incorrect." }, { status: 400 });
   }

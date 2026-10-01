@@ -7,7 +7,8 @@ import {
   peakDay,
   type HistoryRange,
 } from "../_lib/mock-data";
-import { getCurrentUser, getHistory } from "../../db/queries";
+import { getHistory } from "../../db/queries";
+import { requireUser } from "../_lib/auth";
 import { CalorieDeltaChart } from "./CalorieDeltaChart";
 import { MealBreakdownBar } from "./MealBreakdownBar";
 
@@ -19,7 +20,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
   const requested = Array.isArray(params.range) ? params.range[0] : params.range;
   const range: HistoryRange = requested === "30" ? 30 : 7;
 
-  const user = await getCurrentUser();
+  const user = await requireUser();
   const days = await getHistory(user.id, range);
   const averages = historyAverages(days);
   const breakdown = mealAverageBreakdown(days);

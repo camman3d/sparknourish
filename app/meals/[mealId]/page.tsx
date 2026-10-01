@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MacroBar } from "../../_components/MacroBar";
 import { mealOptions, type MealId } from "../../_lib/mock-data";
-import { getCurrentUser, getMealEntries } from "../../../db/queries";
+import { getMealEntries } from "../../../db/queries";
+import { requireUser } from "../../_lib/auth";
 
 // Reads today's date and live food-log data — must render per-request.
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export default async function MealSummaryPage(props: PageProps<"/meals/[mealId]"
     notFound();
   }
 
-  const user = await getCurrentUser();
+  const user = await requireUser();
   const items = await getMealEntries(user.id, mealId as MealId);
 
   const totals = items.reduce(

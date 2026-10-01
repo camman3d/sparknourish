@@ -58,6 +58,7 @@ const navItems = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  if (pathname === "/login" || pathname === "/signup") return null;
 
   return (
     <nav className="sticky bottom-0 z-10 border-t border-zinc-200 bg-white/95 backdrop-blur dark:border-zinc-800 dark:bg-black/95">

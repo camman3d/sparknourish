@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
-import { addFoodLogEntry, getCurrentUser } from "../../../db/queries";
+import { addFoodLogEntry } from "../../../db/queries";
+import { getSessionUser } from "../../_lib/auth";
 import type { MealId } from "../../_lib/mock-data";
 
 export async function POST(request: Request) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+
   const body = (await request.json()) as {
     mealType?: MealId;
     name?: string;
@@ -17,7 +21,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
   }
 
-  const user = await getCurrentUser();
   const entry = await addFoodLogEntry({
     userId: user.id,
     mealType: body.mealType,

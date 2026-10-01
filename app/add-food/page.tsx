@@ -1,15 +1,23 @@
 import Link from "next/link";
 import { FoodSearch } from "./FoodSearch";
+import { requireUser } from "../_lib/auth";
 import type { MealId } from "../_lib/mock-data";
+import { getLastLoggedMealToday } from "../../db/queries";
 
 const VALID_MEALS: MealId[] = ["breakfast", "lunch", "dinner", "snacks"];
 
 export default async function AddFoodPage(props: PageProps<"/add-food">) {
   const params = await props.searchParams;
   const requested = Array.isArray(params.meal) ? params.meal[0] : params.meal;
-  const initialMeal: MealId = VALID_MEALS.includes(requested as MealId)
-    ? (requested as MealId)
-    : "breakfast";
+  // An explicit ?meal= wins; otherwise default to the meal most recently logged
+  // today, falling back to breakfast.
+  let initialMeal: MealId;
+  if (VALID_MEALS.includes(requested as MealId)) {
+    initialMeal = requested as MealId;
+  } else {
+    const user = await requireUser();
+    initialMeal = (await getLastLoggedMealToday(user.id)) ?? "breakfast";
+  }
 
   return (
     <main className="flex flex-col gap-5 px-5 pb-8 pt-6">

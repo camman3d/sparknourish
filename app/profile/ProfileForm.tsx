@@ -144,7 +144,8 @@ export function ProfileForm() {
   async function handleLogout() {
     setLoggingOut(true);
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/");
+    router.push("/login");
+    router.refresh();
   }
 
   if (!form) {

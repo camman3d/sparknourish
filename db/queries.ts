@@ -1,15 +1,7 @@
-import { and, asc, eq, gte, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt } from "drizzle-orm";
 import { db } from "./index";
 import { foodLogEntries, users, type FoodLogEntry, type NewUser, type User } from "./schema";
 import { mealOptions, type DayLog, type HistoryRange, type MealId } from "../app/_lib/mock-data";
-
-export async function getCurrentUser(): Promise<User> {
-  const [user] = await db.select().from(users).limit(1);
-  if (!user) {
-    throw new Error("No user found — run `npm run db:seed` to create one.");
-  }
-  return user;
-}
 
 export type PublicUser = Omit<User, "passwordHash">;
 
@@ -102,6 +94,23 @@ export async function getMealEntries(userId: number, mealId: MealId) {
   const today = startOfDayUtc(new Date());
   const entries = await getEntriesBetween(userId, today, addDays(today, 1));
   return entries.filter((entry) => entry.mealType === mealId);
+}
+
+export async function getLastLoggedMealToday(userId: number): Promise<MealId | null> {
+  const today = startOfDayUtc(new Date());
+  const [latest] = await db
+    .select({ mealType: foodLogEntries.mealType })
+    .from(foodLogEntries)
+    .where(
+      and(
+        eq(foodLogEntries.userId, userId),
+        gte(foodLogEntries.loggedAt, today),
+        lt(foodLogEntries.loggedAt, addDays(today, 1))
+      )
+    )
+    .orderBy(desc(foodLogEntries.createdAt))
+    .limit(1);
+  return latest?.mealType ?? null;
 }
 
 export async function addFoodLogEntry(entry: {

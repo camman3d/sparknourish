@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { foodDatabase, mealOptions, type FoodEntry, type MealId } from "../_lib/mock-data";
 
 export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
@@ -130,6 +131,13 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
           )}
         </ul>
       </div>
+
+      <Link
+        href={`/meals/${meal}`}
+        className="rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+      >
+        Done adding
+      </Link>
 
       <button
         type="button"

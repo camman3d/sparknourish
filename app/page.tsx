@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { MacroBar } from "./_components/MacroBar";
-import { getCurrentUser, getTodayMeals } from "../db/queries";
+import { getTodayMeals } from "../db/queries";
+import { requireUser } from "./_lib/auth";
 
 // Reads today's date and live food-log data — must render per-request, not
 // get frozen into a static page at build time.
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const user = await getCurrentUser();
+  const user = await requireUser();
   const { meals, totals } = await getTodayMeals(user.id);
 
   const remaining = Math.max(0, user.dailyCalorieGoal - totals.calories);
