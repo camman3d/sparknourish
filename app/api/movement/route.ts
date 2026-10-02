@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { addMovementEntry } from "../../../db/queries";
 import { getSessionUser } from "../../_lib/auth";
-import { dateKey, parseDateKey, todayUtc } from "../../_lib/calendar";
+import { dateKey, markerAtLocalHour, parseDateKey, resolveTimeZone, todayKey } from "../../_lib/calendar";
 import {
   estimateCalories,
   isMovementIntensity,
@@ -34,12 +34,11 @@ export async function POST(request: Request) {
     : "moderate";
 
   // Optional date (YYYY-MM-DD) lets movement be attached to a selected day.
+  const timeZone = resolveTimeZone(user.timezone);
   const parsedDate = parseDateKey(body.date);
   let loggedAt: Date | undefined;
-  if (parsedDate && dateKey(parsedDate) !== dateKey(todayUtc())) {
-    loggedAt = new Date(
-      Date.UTC(parsedDate.getUTCFullYear(), parsedDate.getUTCMonth(), parsedDate.getUTCDate(), 12)
-    );
+  if (parsedDate && dateKey(parsedDate) !== todayKey(timeZone)) {
+    loggedAt = markerAtLocalHour(parsedDate, 12, timeZone);
   }
 
   const entry = await addMovementEntry({

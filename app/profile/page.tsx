@@ -1,6 +1,7 @@
 import { getHistory } from "../../db/queries";
 import { dayStreak } from "../_lib/mock-data";
 import { requireUser } from "../_lib/auth";
+import { resolveTimeZone } from "../_lib/calendar";
 import { ProfileForm } from "./ProfileForm";
 
 // Reads the session user and recent history (for the streak) — per-request.
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {
   const user = await requireUser();
-  const days = await getHistory(user.id, 30);
+  const days = await getHistory(user.id, 30, resolveTimeZone(user.timezone));
   const streak = dayStreak(days);
 
   return (
@@ -35,6 +36,7 @@ export default async function ProfilePage() {
           addExerciseToBudget: user.addExerciseToBudget,
           remindersEnabled: user.remindersEnabled,
           units: user.units,
+          timezone: resolveTimeZone(user.timezone),
           openRouterApiKey: user.openRouterApiKey,
         }}
       />

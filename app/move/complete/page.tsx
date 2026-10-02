@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getMealsForDate, getMovementEntry, getMovementOverview } from "../../../db/queries";
 import { requireUser } from "../../_lib/auth";
+import { resolveTimeZone, todayMarker } from "../../_lib/calendar";
 import { CompletionScreen } from "./CompletionScreen";
 
 // Shows the just-logged activity and live week/budget figures — per-request.
@@ -11,14 +12,15 @@ export default async function MovementCompletePage(props: PageProps<"/move/compl
   const requested = Array.isArray(params.entry) ? params.entry[0] : params.entry;
 
   const user = await requireUser();
+  const timeZone = resolveTimeZone(user.timezone);
 
   const entryId = parseInt(requested ?? "", 10);
   const entry = Number.isInteger(entryId) ? await getMovementEntry(user.id, entryId) : null;
   if (!entry) redirect("/move");
 
   const [overview, { totals }] = await Promise.all([
-    getMovementOverview(user.id, new Date()),
-    getMealsForDate(user.id, new Date()),
+    getMovementOverview(user.id, timeZone, new Date()),
+    getMealsForDate(user.id, todayMarker(timeZone), timeZone),
   ]);
 
   const remainingBase = user.dailyCalorieGoal - totals.calories;

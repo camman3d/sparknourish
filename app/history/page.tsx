@@ -8,6 +8,7 @@ import {
 } from "../_lib/mock-data";
 import { getHistory } from "../../db/queries";
 import { requireUser } from "../_lib/auth";
+import { resolveTimeZone } from "../_lib/calendar";
 import { CalorieBars } from "./CalorieBars";
 import { MacroSplit } from "./MacroSplit";
 
@@ -26,7 +27,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
   const range: HistoryRange = requested === "30" ? 30 : requested === "90" ? 90 : 7;
 
   const user = await requireUser();
-  const days = await getHistory(user.id, range);
+  const days = await getHistory(user.id, range, resolveTimeZone(user.timezone));
   const averages = historyAverages(days);
   const streak = dayStreak(days);
   const split = macroSplitCalories(averages);

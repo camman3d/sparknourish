@@ -1,19 +1,24 @@
 import { NextResponse } from "next/server";
 import { addWaterEntry, deleteLatestWaterEntry } from "../../../db/queries";
 import { getSessionUser } from "../../_lib/auth";
-import { dateKey, parseDateKey, todayUtc } from "../../_lib/calendar";
+import {
+  dateKey,
+  markerAtLocalHour,
+  parseDateKey,
+  resolveTimeZone,
+  todayKey,
+  todayMarker,
+} from "../../_lib/calendar";
 
 /** Max per single log — guards against fat-fingered input. */
 const MAX_GLASS_OZ = 128;
 
 // Optional date (YYYY-MM-DD) attaches the entry to a selected day. Past / future
-// days are stamped at noon UTC; today keeps the real time. Matches food/movement.
-function resolveLoggedAt(date: string | null | undefined): Date | undefined {
+// days are stamped at local noon; today keeps the real time. Matches food/movement.
+function resolveLoggedAt(date: string | null | undefined, timeZone: string): Date | undefined {
   const parsedDate = parseDateKey(date);
-  if (parsedDate && dateKey(parsedDate) !== dateKey(todayUtc())) {
-    return new Date(
-      Date.UTC(parsedDate.getUTCFullYear(), parsedDate.getUTCMonth(), parsedDate.getUTCDate(), 12)
-    );
+  if (parsedDate && dateKey(parsedDate) !== todayKey(timeZone)) {
+    return markerAtLocalHour(parsedDate, 12, timeZone);
   }
   return undefined;
 }
@@ -38,7 +43,7 @@ export async function POST(request: Request) {
   const entry = await addWaterEntry({
     userId: user.id,
     amountOz,
-    loggedAt: resolveLoggedAt(body.date),
+    loggedAt: resolveLoggedAt(body.date, resolveTimeZone(user.timezone)),
   });
 
   return NextResponse.json(entry, { status: 201 });
@@ -49,10 +54,11 @@ export async function DELETE(request: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
+  const timeZone = resolveTimeZone(user.timezone);
   const date = new URL(request.url).searchParams.get("date");
-  const target = parseDateKey(date) ?? todayUtc();
+  const target = parseDateKey(date) ?? todayMarker(timeZone);
 
-  const deleted = await deleteLatestWaterEntry(user.id, target);
+  const deleted = await deleteLatestWaterEntry(user.id, target, timeZone);
   if (!deleted) {
     return NextResponse.json({ error: "Nothing to remove." }, { status: 404 });
   }

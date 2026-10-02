@@ -4,11 +4,13 @@ import { db } from "../../../../db";
 import { hashPassword } from "../../../../db/password";
 import { users } from "../../../../db/schema";
 import { createSession } from "../../../_lib/auth";
+import { isValidTimeZone } from "../../../_lib/calendar";
 
 type SignupBody = {
   name?: string;
   email?: string;
   password?: string;
+  timezone?: string;
 };
 
 function fail(error: string, status = 400) {
@@ -23,6 +25,7 @@ export async function POST(request: Request) {
   const name = body.name?.trim() ?? "";
   const email = body.email?.trim().toLowerCase() ?? "";
   const password = body.password ?? "";
+  const timezone = isValidTimeZone(body.timezone) ? body.timezone : "UTC";
 
   if (!name) return fail("Name is required.");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail("Enter a valid email address.");
@@ -39,6 +42,7 @@ export async function POST(request: Request) {
         name,
         email,
         passwordHash: hashPassword(password),
+        timezone,
         onboardingCompleted: false,
       })
       .returning({ id: users.id });

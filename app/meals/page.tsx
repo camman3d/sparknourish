@@ -4,7 +4,7 @@ import { MacroBar } from "../_components/MacroBar";
 import { MealIcon, mealTint } from "../_components/MealIcon";
 import { getMealsForDate } from "../../db/queries";
 import { requireUser } from "../_lib/auth";
-import { addDays, dateKey, parseDateKey, todayUtc } from "../_lib/calendar";
+import { addDays, dateKey, parseDateKey, resolveTimeZone, todayMarker } from "../_lib/calendar";
 
 // Reads the selected date and live food-log data — must render per-request.
 export const dynamic = "force-dynamic";
@@ -12,11 +12,13 @@ export const dynamic = "force-dynamic";
 export default async function AllMealsPage(props: PageProps<"/meals">) {
   const params = await props.searchParams;
   const requested = Array.isArray(params.date) ? params.date[0] : params.date;
-  const selected = parseDateKey(requested) ?? todayUtc();
-  const dateParam = dateKey(selected);
 
   const user = await requireUser();
-  const { meals, totals } = await getMealsForDate(user.id, selected);
+  const timeZone = resolveTimeZone(user.timezone);
+  const selected = parseDateKey(requested) ?? todayMarker(timeZone);
+  const dateParam = dateKey(selected);
+
+  const { meals, totals } = await getMealsForDate(user.id, selected, timeZone);
 
   const remaining = user.dailyCalorieGoal - totals.calories;
   const prevKey = dateKey(addDays(selected, -1));

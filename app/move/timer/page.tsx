@@ -1,5 +1,6 @@
 import { getMovementForDate } from "../../../db/queries";
 import { requireUser } from "../../_lib/auth";
+import { resolveTimeZone, todayMarker } from "../../_lib/calendar";
 import {
   dailyMoveGoal,
   isMovementType,
@@ -20,7 +21,8 @@ export default async function MovementTimerPage(props: PageProps<"/move/timer">)
   const requestedTarget = Array.isArray(params.target) ? params.target[0] : params.target;
   const parsedTarget = Number(requestedTarget);
 
-  const today = await getMovementForDate(user.id, new Date());
+  const timeZone = resolveTimeZone(user.timezone);
+  const today = await getMovementForDate(user.id, todayMarker(timeZone), timeZone);
   const dayGoal = dailyMoveGoal(user.weeklyMoveGoalMin);
   const target =
     Number.isFinite(parsedTarget) && parsedTarget >= 1 && parsedTarget <= 600

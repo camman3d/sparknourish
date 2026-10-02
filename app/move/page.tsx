@@ -4,7 +4,7 @@ import { MovementIcon, movementTint } from "../_components/MovementIcon";
 import { ProgressRing } from "../_components/ProgressRing";
 import { getMovementOverview } from "../../db/queries";
 import { requireUser } from "../_lib/auth";
-import { relativeDayLabel, shortDateLabel, todayUtc } from "../_lib/calendar";
+import { relativeDayLabel, resolveTimeZone, shortDateLabel, todayMarker } from "../_lib/calendar";
 import {
   dailyMoveGoal,
   movementOption,
@@ -17,9 +17,10 @@ export const dynamic = "force-dynamic";
 
 export default async function MovePage() {
   const user = await requireUser();
-  const overview = await getMovementOverview(user.id, new Date());
+  const timeZone = resolveTimeZone(user.timezone);
+  const overview = await getMovementOverview(user.id, timeZone, new Date());
 
-  const today = todayUtc();
+  const today = todayMarker(timeZone);
   const weeklyGoal = user.weeklyMoveGoalMin;
   const dayGoal = dailyMoveGoal(weeklyGoal);
 
@@ -196,7 +197,7 @@ export default async function MovePage() {
                     {movementOption(entry.activity as MovementType).name}
                   </p>
                   <p className="text-sm text-sand-500">
-                    {relativeDayLabel(entry.loggedAt)} · {entry.durationMin} min
+                    {relativeDayLabel(entry.loggedAt, timeZone)} · {entry.durationMin} min
                   </p>
                 </div>
                 <p className="shrink-0 font-display text-lg font-bold tabular-nums text-forest-900">

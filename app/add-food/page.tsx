@@ -1,7 +1,7 @@
 import { FoodSearch } from "./FoodSearch";
 import { requireUser } from "../_lib/auth";
 import { mealOptions, type MealId } from "../_lib/mock-data";
-import { dateKey, parseDateKey, todayUtc } from "../_lib/calendar";
+import { dateKey, parseDateKey, resolveTimeZone, todayMarker } from "../_lib/calendar";
 import { getLastLoggedMealToday, getRecentFoods } from "../../db/queries";
 
 const VALID_MEALS: MealId[] = mealOptions.map((meal) => meal.id);
@@ -10,10 +10,11 @@ export default async function AddFoodPage(props: PageProps<"/add-food">) {
   const params = await props.searchParams;
   const requested = Array.isArray(params.meal) ? params.meal[0] : params.meal;
   const requestedDate = Array.isArray(params.date) ? params.date[0] : params.date;
-  const date = parseDateKey(requestedDate) ?? todayUtc();
-  const dateParam = dateKey(date);
 
   const user = await requireUser();
+  const timeZone = resolveTimeZone(user.timezone);
+  const date = parseDateKey(requestedDate) ?? todayMarker(timeZone);
+  const dateParam = dateKey(date);
 
   // An explicit ?meal= wins; otherwise default to the meal most recently logged
   // today, falling back to breakfast.
@@ -21,7 +22,7 @@ export default async function AddFoodPage(props: PageProps<"/add-food">) {
   if (VALID_MEALS.includes(requested as MealId)) {
     initialMeal = requested as MealId;
   } else {
-    initialMeal = (await getLastLoggedMealToday(user.id)) ?? "breakfast";
+    initialMeal = (await getLastLoggedMealToday(user.id, timeZone)) ?? "breakfast";
   }
 
   const recent = await getRecentFoods(user.id);

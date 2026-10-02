@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -43,6 +43,7 @@ type ProfileData = {
   addExerciseToBudget: boolean;
   remindersEnabled: boolean;
   units: string;
+  timezone: string;
   openRouterApiKey: string;
 };
 
@@ -85,6 +86,60 @@ const TARGET_META: {
   { key: "waterGoalOz", label: "Water", suffix: "oz", dot: "bg-lagoon-500", min: 8, max: 300 },
 ];
 
+// Shown if the runtime lacks Intl.supportedValuesOf (older browsers).
+const FALLBACK_TIME_ZONES = [
+  "UTC",
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Anchorage",
+  "Pacific/Honolulu",
+  "America/Toronto",
+  "America/Mexico_City",
+  "America/Sao_Paulo",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Europe/Madrid",
+  "Africa/Johannesburg",
+  "Asia/Dubai",
+  "Asia/Kolkata",
+  "Asia/Singapore",
+  "Asia/Tokyo",
+  "Asia/Shanghai",
+  "Australia/Sydney",
+  "Pacific/Auckland",
+];
+
+function supportedTimeZones(): string[] {
+  const intl = Intl as typeof Intl & { supportedValuesOf?: (key: string) => string[] };
+  try {
+    const zones = intl.supportedValuesOf?.("timeZone");
+    if (zones && zones.length) return zones;
+  } catch {
+    // Fall back to the shortlist below.
+  }
+  return FALLBACK_TIME_ZONES;
+}
+
+// The full IANA list is read on the client only (via useSyncExternalStore) so a
+// slightly different ICU list between server and browser can't break hydration.
+let cachedTimeZones: string[] | null = null;
+function timeZoneSnapshot(): string[] {
+  if (!cachedTimeZones) {
+    const zones = supportedTimeZones();
+    cachedTimeZones = zones.includes("UTC") ? zones : ["UTC", ...zones];
+  }
+  return cachedTimeZones;
+}
+function timeZoneServerSnapshot(): string[] {
+  return FALLBACK_TIME_ZONES;
+}
+function subscribeToTimeZones(): () => void {
+  return () => {};
+}
+
 export function ProfileForm({ initial, streak }: { initial: ProfileData; streak: number }) {
   const router = useRouter();
 
@@ -112,6 +167,15 @@ export function ProfileForm({ initial, streak }: { initial: ProfileData; streak:
   const [apiKeySaveState, setApiKeySaveState] = useState<"idle" | "saving" | "saved">("idle");
 
   const [loggingOut, setLoggingOut] = useState(false);
+
+  const availableTimeZones = useSyncExternalStore(
+    subscribeToTimeZones,
+    timeZoneSnapshot,
+    timeZoneServerSnapshot
+  );
+  const timeZoneOptions = availableTimeZones.includes(form.timezone)
+    ? availableTimeZones
+    : [form.timezone, ...availableTimeZones];
 
   const initialLetter = form.name.trim().charAt(0).toUpperCase() || "?";
 
@@ -196,6 +260,12 @@ export function ProfileForm({ initial, streak }: { initial: ProfileData; streak:
     const next = form.units === "metric" ? "imperial" : "metric";
     update("units", next);
     await patchProfile({ units: next });
+  }
+
+  async function handleTimeZoneChange(timeZone: string) {
+    update("timezone", timeZone);
+    await patchProfile({ timezone: timeZone });
+    router.refresh();
   }
 
   async function toggleExerciseBudget() {
@@ -378,6 +448,21 @@ export function ProfileForm({ initial, streak }: { initial: ProfileData; streak:
             <ChevronRight className="h-4 w-4 text-sand-400" strokeWidth={2} aria-hidden />
           </span>
         </button>
+        <label className="flex w-full items-center justify-between gap-3 py-3.5">
+          <span className="text-sand-600">Time zone</span>
+          <select
+            value={form.timezone}
+            onChange={(e) => void handleTimeZoneChange(e.target.value)}
+            aria-label="Time zone"
+            className="max-w-[62%] rounded-lg border border-sand-200 bg-white px-2 py-1.5 text-sm font-semibold text-forest-900 focus:border-forest-500 focus:outline-none"
+          >
+            {timeZoneOptions.map((zone) => (
+              <option key={zone} value={zone}>
+                {zone}
+              </option>
+            ))}
+          </select>
+        </label>
         <div className="flex w-full items-center justify-between gap-3 py-3.5" title="Connected apps are coming soon">
           <span className="text-sand-600">Connected apps</span>
           <span className="flex items-center gap-1.5 font-semibold text-forest-900">

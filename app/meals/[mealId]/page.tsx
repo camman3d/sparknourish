@@ -4,7 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { MealItemList } from "./MealItemList";
 import { MealIcon, mealTint } from "../../_components/MealIcon";
 import { mealOptions, type MealId } from "../../_lib/mock-data";
-import { dateKey, parseDateKey, todayUtc } from "../../_lib/calendar";
+import { dateKey, parseDateKey, resolveTimeZone, todayMarker } from "../../_lib/calendar";
 import { getMealEntries } from "../../../db/queries";
 import { requireUser } from "../../_lib/auth";
 
@@ -21,16 +21,20 @@ export default async function MealSummaryPage(props: PageProps<"/meals/[mealId]"
   }
 
   const requestedDate = Array.isArray(searchParams.date) ? searchParams.date[0] : searchParams.date;
-  const date = parseDateKey(requestedDate) ?? todayUtc();
-  const dateParam = dateKey(date);
 
   const user = await requireUser();
-  const items = await getMealEntries(user.id, mealId as MealId, date);
+  const timeZone = resolveTimeZone(user.timezone);
+  const date = parseDateKey(requestedDate) ?? todayMarker(timeZone);
+  const dateParam = dateKey(date);
+
+  const items = await getMealEntries(user.id, mealId as MealId, timeZone, date);
 
   const time = items.length
-    ? new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(
-        items[0].loggedAt
-      )
+    ? new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone,
+      }).format(items[0].loggedAt)
     : null;
 
   return (

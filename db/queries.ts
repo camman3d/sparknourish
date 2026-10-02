@@ -14,7 +14,14 @@ import {
   type WaterLogEntry,
 } from "./schema";
 import { mealOptions, type DayLog, type HistoryRange, type MealId } from "../app/_lib/mock-data";
-import { addDays, dateKey, startOfDayUtc } from "../app/_lib/calendar";
+import {
+  addDays,
+  dateKey,
+  dateKeyInTimeZone,
+  dayBoundsForMarker,
+  parseDateKey,
+  todayMarker,
+} from "../app/_lib/calendar";
 import type { MovementIntensity, MovementType } from "../app/_lib/movement";
 
 export type PublicUser = Omit<User, "passwordHash">;
@@ -34,8 +41,12 @@ export async function updateUser(userId: number, patch: Partial<NewUser>) {
   return updated;
 }
 
-function formatTime(date: Date) {
-  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(date);
+function formatTime(date: Date, timeZone: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+  }).format(date);
 }
 
 function sumMacros(entries: FoodLogEntry[]) {
@@ -72,16 +83,16 @@ export type MealSummary = {
   totals: { calories: number; protein: number; carbs: number; fat: number };
 };
 
-export async function getMealsForDate(userId: number, date: Date) {
-  const dayStart = startOfDayUtc(date);
-  const entries = await getEntriesBetween(userId, dayStart, addDays(dayStart, 1));
+export async function getMealsForDate(userId: number, date: Date, timeZone: string) {
+  const { start, end } = dayBoundsForMarker(date, timeZone);
+  const entries = await getEntriesBetween(userId, start, end);
 
   const meals: MealSummary[] = mealOptions.map((option) => {
     const items = entries.filter((entry) => entry.mealType === option.id);
     return {
       id: option.id,
       name: option.name,
-      time: items.length ? formatTime(items[0].loggedAt) : null,
+      time: items.length ? formatTime(items[0].loggedAt, timeZone) : null,
       items,
       totals: sumMacros(items),
     };
@@ -90,26 +101,31 @@ export async function getMealsForDate(userId: number, date: Date) {
   return { meals, totals: sumMacros(entries) };
 }
 
-export async function getTodayMeals(userId: number) {
-  return getMealsForDate(userId, new Date());
+export async function getTodayMeals(userId: number, timeZone: string) {
+  return getMealsForDate(userId, todayMarker(timeZone), timeZone);
 }
 
-export async function getMealEntries(userId: number, mealId: MealId, date?: Date) {
-  const dayStart = startOfDayUtc(date ?? new Date());
-  const entries = await getEntriesBetween(userId, dayStart, addDays(dayStart, 1));
+export async function getMealEntries(
+  userId: number,
+  mealId: MealId,
+  timeZone: string,
+  date?: Date
+) {
+  const { start, end } = dayBoundsForMarker(date ?? todayMarker(timeZone), timeZone);
+  const entries = await getEntriesBetween(userId, start, end);
   return entries.filter((entry) => entry.mealType === mealId);
 }
 
-export async function getLastLoggedMealToday(userId: number): Promise<MealId | null> {
-  const today = startOfDayUtc(new Date());
+export async function getLastLoggedMealToday(userId: number, timeZone: string): Promise<MealId | null> {
+  const { start, end } = dayBoundsForMarker(todayMarker(timeZone), timeZone);
   const [latest] = await db
     .select({ mealType: foodLogEntries.mealType })
     .from(foodLogEntries)
     .where(
       and(
         eq(foodLogEntries.userId, userId),
-        gte(foodLogEntries.loggedAt, today),
-        lt(foodLogEntries.loggedAt, addDays(today, 1))
+        gte(foodLogEntries.loggedAt, start),
+        lt(foodLogEntries.loggedAt, end)
       )
     )
     .orderBy(desc(foodLogEntries.createdAt))
@@ -135,10 +151,10 @@ export async function addFoodLogEntry(entry: {
   return created;
 }
 
-export async function getHistory(userId: number, days: HistoryRange): Promise<DayLog[]> {
-  const todayStart = startOfDayUtc(new Date());
-  const rangeStart = addDays(todayStart, -(days - 1));
-  const rangeEnd = addDays(todayStart, 1);
+export async function getHistory(userId: number, days: HistoryRange, timeZone: string): Promise<DayLog[]> {
+  const today = todayMarker(timeZone);
+  const rangeStart = dayBoundsForMarker(addDays(today, -(days - 1)), timeZone).start;
+  const rangeEnd = dayBoundsForMarker(today, timeZone).end;
   const [entries, water] = await Promise.all([
     getEntriesBetween(userId, rangeStart, rangeEnd),
     getWaterBetween(userId, rangeStart, rangeEnd),
@@ -146,7 +162,7 @@ export async function getHistory(userId: number, days: HistoryRange): Promise<Da
 
   const byDate = new Map<string, FoodLogEntry[]>();
   for (const entry of entries) {
-    const key = dateKey(entry.loggedAt);
+    const key = dateKeyInTimeZone(entry.loggedAt, timeZone);
     const bucket = byDate.get(key);
     if (bucket) bucket.push(entry);
     else byDate.set(key, [entry]);
@@ -154,7 +170,7 @@ export async function getHistory(userId: number, days: HistoryRange): Promise<Da
 
   const waterByDate = new Map<string, number>();
   for (const entry of water) {
-    const key = dateKey(entry.loggedAt);
+    const key = dateKeyInTimeZone(entry.loggedAt, timeZone);
     waterByDate.set(key, (waterByDate.get(key) ?? 0) + entry.amountOz);
   }
 
@@ -163,7 +179,7 @@ export async function getHistory(userId: number, days: HistoryRange): Promise<Da
 
   const out: DayLog[] = [];
   for (let i = days - 1; i >= 0; i--) {
-    const day = addDays(todayStart, -i);
+    const day = addDays(today, -i);
     const dayEntries = byDate.get(dateKey(day)) ?? [];
     const totals = sumMacros(dayEntries);
     const meals: Record<MealId, number> = { breakfast: 0, lunch: 0, dinner: 0, snacks: 0 };
@@ -452,22 +468,24 @@ export type MovementOverview = {
 };
 
 /** Movement logged on a single day — used by the Diary's Move card. */
-export async function getMovementForDate(userId: number, date: Date) {
-  const dayStart = startOfDayUtc(date);
-  const entries = await getMovementBetween(userId, dayStart, addDays(dayStart, 1));
+export async function getMovementForDate(userId: number, date: Date, timeZone: string) {
+  const { start, end } = dayBoundsForMarker(date, timeZone);
+  const entries = await getMovementBetween(userId, start, end);
   return { ...sumMovement(entries), entries };
 }
 
 /** Today + the Monday–Sunday week containing it, plus the most recent entries. */
 export async function getMovementOverview(
   userId: number,
+  timeZone: string,
   date = new Date()
 ): Promise<MovementOverview> {
-  const dayStart = startOfDayUtc(date);
-  const dow = dayStart.getUTCDay(); // 0 = Sunday
+  const marker = parseDateKey(dateKeyInTimeZone(date, timeZone)) ?? todayMarker(timeZone);
+  const dow = marker.getUTCDay(); // 0 = Sunday
   const mondayOffset = dow === 0 ? -6 : 1 - dow;
-  const weekStart = addDays(dayStart, mondayOffset);
-  const weekEnd = addDays(weekStart, 7);
+  const weekStartMarker = addDays(marker, mondayOffset);
+  const weekStart = dayBoundsForMarker(weekStartMarker, timeZone).start;
+  const weekEnd = dayBoundsForMarker(addDays(weekStartMarker, 7), timeZone).start;
 
   const [weekEntries, recent] = await Promise.all([
     getMovementBetween(userId, weekStart, weekEnd),
@@ -480,24 +498,26 @@ export async function getMovementOverview(
   ]);
 
   const weekdayFmt = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" });
-  const todayKey = dateKey(dayStart);
+  const todayKey = dateKey(marker);
 
   const days: MovementDay[] = Array.from({ length: 7 }, (_, index) => {
-    const day = addDays(weekStart, index);
+    const day = addDays(weekStartMarker, index);
     const key = dateKey(day);
     const minutes = weekEntries
-      .filter((entry) => dateKey(entry.loggedAt) === key)
+      .filter((entry) => dateKeyInTimeZone(entry.loggedAt, timeZone) === key)
       .reduce((sum, entry) => sum + entry.durationMin, 0);
     return {
       key,
       weekday: weekdayFmt.format(day),
       minutes,
       isToday: key === todayKey,
-      isFuture: day.getTime() > dayStart.getTime(),
+      isFuture: day.getTime() > marker.getTime(),
     };
   });
 
-  const todayEntries = weekEntries.filter((entry) => dateKey(entry.loggedAt) === todayKey);
+  const todayEntries = weekEntries.filter(
+    (entry) => dateKeyInTimeZone(entry.loggedAt, timeZone) === todayKey
+  );
 
   return {
     today: { ...sumMovement(todayEntries), entries: todayEntries },
@@ -580,9 +600,9 @@ async function getWaterBetween(userId: number, start: Date, end: Date) {
 }
 
 /** Water logged on a single day — used by the Home water tile. */
-export async function getWaterForDate(userId: number, date: Date) {
-  const dayStart = startOfDayUtc(date);
-  const entries = await getWaterBetween(userId, dayStart, addDays(dayStart, 1));
+export async function getWaterForDate(userId: number, date: Date, timeZone: string) {
+  const { start, end } = dayBoundsForMarker(date, timeZone);
+  const entries = await getWaterBetween(userId, start, end);
   return {
     totalOz: entries.reduce((sum, entry) => sum + entry.amountOz, 0),
     entries,
@@ -602,16 +622,16 @@ export async function addWaterEntry(entry: {
 }
 
 /** Removes the most recently logged water entry for a given day (undo a glass). */
-export async function deleteLatestWaterEntry(userId: number, date: Date) {
-  const dayStart = startOfDayUtc(date);
+export async function deleteLatestWaterEntry(userId: number, date: Date, timeZone: string) {
+  const { start, end } = dayBoundsForMarker(date, timeZone);
   const [latest] = await db
     .select()
     .from(waterLogEntries)
     .where(
       and(
         eq(waterLogEntries.userId, userId),
-        gte(waterLogEntries.loggedAt, dayStart),
-        lt(waterLogEntries.loggedAt, addDays(dayStart, 1))
+        gte(waterLogEntries.loggedAt, start),
+        lt(waterLogEntries.loggedAt, end)
       )
     )
     .orderBy(desc(waterLogEntries.loggedAt), desc(waterLogEntries.id))

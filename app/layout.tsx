@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, DM_Sans } from "next/font/google";
 import { BottomNav } from "./_components/BottomNav";
+import { TimeZoneSync } from "./_components/TimeZoneSync";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <div className="flex-1">{children}</div>
           <BottomNav />
         </div>
+        <TimeZoneSync />
       </body>
     </html>
   );

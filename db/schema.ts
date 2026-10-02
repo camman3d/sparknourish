@@ -50,6 +50,10 @@ export const users = pgTable("users", {
   addExerciseToBudget: boolean("add_exercise_to_budget").notNull().default(true),
   remindersEnabled: boolean("reminders_enabled").notNull().default(true),
   units: text("units").notNull().default("imperial"),
+  // IANA time zone (e.g. "America/New_York") used to bucket food, movement and
+  // water logs into the user's local calendar days. Kept in sync with the
+  // browser; falls back to UTC when unset/unknown.
+  timezone: text("timezone").notNull().default("UTC"),
   // Defaults to true so existing accounts are never forced back through
   // onboarding; the signup route explicitly inserts `false`.
   onboardingCompleted: boolean("onboarding_completed").notNull().default(true),

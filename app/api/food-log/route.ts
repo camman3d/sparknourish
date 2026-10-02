@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { addFoodLogEntry } from "../../../db/queries";
 import { getSessionUser } from "../../_lib/auth";
-import { dateKey, parseDateKey, todayUtc } from "../../_lib/calendar";
+import { dateKey, markerAtLocalHour, parseDateKey, resolveTimeZone, todayKey } from "../../_lib/calendar";
 import type { MealId } from "../../_lib/mock-data";
 
 export async function POST(request: Request) {
@@ -24,13 +24,12 @@ export async function POST(request: Request) {
   }
 
   // Optional date (YYYY-MM-DD) lets the Diary log into a selected day. Past /
-  // future days are stamped at noon UTC; today keeps the real time.
+  // future days are stamped at local noon; today keeps the real time.
+  const timeZone = resolveTimeZone(user.timezone);
   const parsedDate = parseDateKey(body.date);
   let loggedAt: Date | undefined;
-  if (parsedDate && dateKey(parsedDate) !== dateKey(todayUtc())) {
-    loggedAt = new Date(
-      Date.UTC(parsedDate.getUTCFullYear(), parsedDate.getUTCMonth(), parsedDate.getUTCDate(), 12)
-    );
+  if (parsedDate && dateKey(parsedDate) !== todayKey(timeZone)) {
+    loggedAt = markerAtLocalHour(parsedDate, 12, timeZone);
   }
 
   const entry = await addFoodLogEntry({

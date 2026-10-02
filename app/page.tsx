@@ -8,7 +8,16 @@ import { MoveTile } from "./_components/MoveTile";
 import { WaterTracker } from "./_components/WaterTracker";
 import { getMealsForDate, getMovementForDate, getWaterForDate } from "../db/queries";
 import { requireUser } from "./_lib/auth";
-import { addDays, dateKey, parseDateKey, shortDateLabel, todayUtc } from "./_lib/calendar";
+import {
+  addDays,
+  dateKey,
+  hourInTimeZone,
+  parseDateKey,
+  resolveTimeZone,
+  shortDateLabel,
+  todayKey,
+  todayMarker,
+} from "./_lib/calendar";
 import { dailyMoveGoal } from "./_lib/movement";
 
 // Reads the selected date and live food-log data — must render per-request.
@@ -17,14 +26,16 @@ export const dynamic = "force-dynamic";
 export default async function HomePage(props: PageProps<"/">) {
   const params = await props.searchParams;
   const requested = Array.isArray(params.date) ? params.date[0] : params.date;
-  const selected = parseDateKey(requested) ?? todayUtc();
-  const selectedKey = dateKey(selected);
 
   const user = await requireUser();
+  const timeZone = resolveTimeZone(user.timezone);
+  const selected = parseDateKey(requested) ?? todayMarker(timeZone);
+  const selectedKey = dateKey(selected);
+
   const [{ meals, totals }, movement, water] = await Promise.all([
-    getMealsForDate(user.id, selected),
-    getMovementForDate(user.id, selected),
-    getWaterForDate(user.id, selected),
+    getMealsForDate(user.id, selected, timeZone),
+    getMovementForDate(user.id, selected, timeZone),
+    getWaterForDate(user.id, selected, timeZone),
   ]);
 
   // Exercise calories can be added back to the day's budget (Profile → Movement).
@@ -46,11 +57,11 @@ export default async function HomePage(props: PageProps<"/">) {
   }).format(selected);
 
   const now = new Date();
-  const hour = now.getHours();
+  const hour = hourInTimeZone(now, timeZone);
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const firstName = user.name.split(" ")[0];
 
-  const isToday = selectedKey === dateKey(todayUtc());
+  const isToday = selectedKey === todayKey(timeZone);
   const mealsHeading = isToday ? "Today's meals" : `Meals for ${shortDateLabel(selected)}`;
 
   return (
