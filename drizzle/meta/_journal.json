@@ -8,6 +8,13 @@
       "when": 1790613026991,
       "tag": "0000_woozy_karnak",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790948497683,
+      "tag": "0001_sleepy_loners",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,14 @@
-import { and, asc, desc, eq, gte, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, lt, or } from "drizzle-orm";
 import { db } from "./index";
-import { foodLogEntries, users, type FoodLogEntry, type NewUser, type User } from "./schema";
+import {
+  customFoods,
+  foodLogEntries,
+  usdaFoods,
+  users,
+  type FoodLogEntry,
+  type NewUser,
+  type User,
+} from "./schema";
 import { mealOptions, type DayLog, type HistoryRange, type MealId } from "../app/_lib/mock-data";
 
 export type PublicUser = Omit<User, "passwordHash">;
@@ -167,3 +175,103 @@ export async function getHistory(userId: number, days: HistoryRange): Promise<Da
   }
   return out;
 }
+
+export async function deleteFoodLogEntry(userId: number, entryId: number) {
+  const [deleted] = await db
+    .delete(foodLogEntries)
+    .where(and(eq(foodLogEntries.id, entryId), eq(foodLogEntries.userId, userId)))
+    .returning();
+  return deleted ?? null;
+}
+
+export async function updateFoodLogEntry(
+  userId: number,
+  entryId: number,
+  patch: Partial<{
+    name: string;
+    quantity: string;
+    calories: number;
+    proteinG: number;
+    carbsG: number;
+    fatG: number;
+    mealType: MealId;
+  }>
+) {
+  const [updated] = await db
+    .update(foodLogEntries)
+    .set(patch)
+    .where(and(eq(foodLogEntries.id, entryId), eq(foodLogEntries.userId, userId)))
+    .returning();
+  return updated ?? null;
+}
+
+export async function createCustomFood(
+  userId: number,
+  food: {
+    name: string;
+    servingSize: string;
+    calories: number;
+    proteinG: number;
+    carbsG: number;
+    fatG: number;
+  }
+) {
+  const [created] = await db
+    .insert(customFoods)
+    .values({ ...food, userId })
+    .returning();
+  return created;
+}
+
+export async function getCustomFoods(userId: number) {
+  return db
+    .select()
+    .from(customFoods)
+    .where(eq(customFoods.userId, userId))
+    .orderBy(desc(customFoods.createdAt));
+}
+
+export async function deleteCustomFood(userId: number, foodId: number) {
+  const [deleted] = await db
+    .delete(customFoods)
+    .where(and(eq(customFoods.id, foodId), eq(customFoods.userId, userId)))
+    .returning();
+  return deleted ?? null;
+}
+
+export async function searchFoods(userId: number, query: string, limit = 25) {
+  const q = query.trim();
+  if (!q) {
+    const userCustom = await db
+      .select()
+      .from(customFoods)
+      .where(eq(customFoods.userId, userId))
+      .orderBy(desc(customFoods.createdAt))
+      .limit(10);
+
+    const commonUsda = await db
+      .select()
+      .from(usdaFoods)
+      .where(eq(usdaFoods.dataType, "survey_fndds_food"))
+      .limit(15);
+
+    return { custom: userCustom, usda: commonUsda };
+  }
+
+  const pattern = `%${q}%`;
+  const [customMatches, usdaMatches] = await Promise.all([
+    db
+      .select()
+      .from(customFoods)
+      .where(and(eq(customFoods.userId, userId), ilike(customFoods.name, pattern)))
+      .limit(10),
+    db
+      .select()
+      .from(usdaFoods)
+      .where(or(ilike(usdaFoods.name, pattern), ilike(usdaFoods.brandOwner, pattern)))
+      .limit(limit),
+  ]);
+
+  return { custom: customMatches, usda: usdaMatches };
+}
+

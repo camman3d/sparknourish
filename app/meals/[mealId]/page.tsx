@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MacroBar } from "../../_components/MacroBar";
+import { MealItemList } from "./MealItemList";
 import { mealOptions, type MealId } from "../../_lib/mock-data";
 import { getMealEntries } from "../../../db/queries";
 import { requireUser } from "../../_lib/auth";
@@ -19,15 +19,6 @@ export default async function MealSummaryPage(props: PageProps<"/meals/[mealId]"
   const user = await requireUser();
   const items = await getMealEntries(user.id, mealId as MealId);
 
-  const totals = items.reduce(
-    (sum, item) => ({
-      calories: sum.calories + item.calories,
-      protein: sum.protein + item.proteinG,
-      carbs: sum.carbs + item.carbsG,
-      fat: sum.fat + item.fatG,
-    }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
-  );
   const time = items.length
     ? new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(
         items[0].loggedAt
@@ -52,49 +43,7 @@ export default async function MealSummaryPage(props: PageProps<"/meals/[mealId]"
         </div>
       </header>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <p className="text-3xl font-bold tabular-nums text-zinc-900 dark:text-zinc-50">
-          {totals.calories} <span className="text-base font-normal text-zinc-400">kcal total</span>
-        </p>
-        <div className="mt-4 flex flex-col gap-3">
-          <MacroBar label="Protein" grams={totals.protein} kind="protein" />
-          <MacroBar label="Carbs" grams={totals.carbs} kind="carbs" />
-          <MacroBar label="Fat" grams={totals.fat} kind="fat" />
-        </div>
-      </section>
-
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Logged items</h2>
-          <Link
-            href={`/add-food?meal=${meal.id}`}
-            className="text-sm font-medium text-emerald-600 dark:text-emerald-400"
-          >
-            + Add food
-          </Link>
-        </div>
-
-        <ul className="flex flex-col divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white shadow-sm dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
-          {items.map((item) => (
-            <li key={item.id} className="flex items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <p className="truncate font-medium text-zinc-900 dark:text-zinc-50">{item.name}</p>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {item.quantity} · P {item.proteinG}g · C {item.carbsG}g · F {item.fatG}g
-                </p>
-              </div>
-              <p className="shrink-0 font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-                {item.calories} <span className="text-sm font-normal text-zinc-400">kcal</span>
-              </p>
-            </li>
-          ))}
-          {items.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
-              Nothing logged for this meal yet.
-            </li>
-          )}
-        </ul>
-      </section>
+      <MealItemList initialItems={items} mealId={mealId as MealId} />
     </main>
   );
 }
