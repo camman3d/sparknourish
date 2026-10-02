@@ -113,7 +113,7 @@ SparkNourish is a mobile-first web application designed for daily nutrition and 
 | **Water & Move Tiles** | ✅ Implemented | Two side-by-side tiles: an interactive `WaterTracker` (lagoon) that logs 8 oz glasses against the Profile water target via `/api/water` with optimistic updates and an undo, and the `MoveTile` (plum) showing `{minutes} min of {dailyMoveGoal}` for the day from `getMovementForDate()`, deep-linking to `/move` and `/move/log`. Water totals come from `getWaterForDate()`. |
 | **Per-Meal Rows** | ✅ Implemented | "Today's meals" card lists Breakfast, Lunch, Snack, Dinner with tinted icons, a `P · C · F` summary and meal kcal totals; unlogged meals render the dashed row with a coral "Add" button deep-linking to `/add-food?meal=…&date=…`. Logged rows open `/meals/[mealId]?date=…`. |
 | **"View all" Meals** | ✅ Implemented | The Home "View all" action opens `/meals?date=…`, a date-aware all-meals page: a day summary (kcal + `MacroBar` grid) followed by every meal card with its item-level `name / quantity / kcal` and per-item macros. Logged meal headers link to `/meals/[mealId]` for edit/delete; unlogged meals deep-link to `/add-food`. Data comes from `getMealsForDate()`. |
-| **Timezone Sensitivity** | ⚠️ Partial | Server queries calculate start-of-day in UTC (`app/_lib/calendar.ts`), which can cause mismatch around day boundaries. |
+| **Timezone Sensitivity** | ✅ Implemented | `users.timezone` stores the IANA zone (synced from the device on signup/login/load, editable under Profile → Preferences). `app/_lib/calendar.ts` gains zone-aware helpers (`todayMarker`, `dayBoundsForMarker`, `dateKeyInTimeZone`, `markerAtLocalHour`) that compute local-midnight boundaries and bucket instants into the user's local day, including DST/half-hour offsets. All food, movement, water and history queries take the zone, so day boundaries follow the user rather than UTC. |
 
 ---
 
@@ -215,6 +215,7 @@ erDiagram
         boolean add_exercise_to_budget
         boolean reminders_enabled
         text units
+        text timezone
         boolean onboarding_completed
         text open_router_api_key
         timestamp with_tz created_at
@@ -300,6 +301,7 @@ erDiagram
 | `/api/profile` | `GET` |  Yes | Returns authenticated user profile (excluding `passwordHash`). |
 | `/api/profile` | `PATCH` |  Yes | Updates allowed profile attributes. |
 | `/api/profile/password` | `POST` |  Yes | Verifies current password and sets new password hash. |
+| `/api/profile/timezone` | `POST` |  Yes | Syncs the stored IANA time zone with the device; no-op (no write) when unchanged. Called on load by `TimeZoneSync`. |
 | `/api/onboarding` | `POST` | Yes | Validates (or defaults, when `skip`), saves goal + health profile and writes computed calorie/macro targets; marks `onboardingCompleted`. |
 | `/api/food-log` | `POST` |  Yes | Inserts a new entry into `food_log_entries`. Accepts an optional `date` (`YYYY-MM-DD`) to log into a selected Diary day. |
 | `/api/food-log/[id]` | `PATCH` |  Yes | Updates an existing food log entry's quantity, macros, name, or meal type. |
@@ -355,6 +357,7 @@ data or behaviour yet. They render for design fidelity only; each is a `no-op`
 | T-012 | Fix: public assets blocked by auth proxy | ✅ Completed | The `proxy.ts` matcher auth-redirected every non-API path, including `public/` files, so unauthenticated pages (login/signup) got a 307 → `/login` for `/SparkNourishIcon.png`. The image optimizer fetched that HTML and failed with "The requested resource isn't a valid image … received null". Added an image-extension exclusion to the matcher; assets now return 200 without a session and the optimizer returns the PNG. `npm run lint` and `npm run build` pass. |
 | T-013 | Move timer: adjustable activity & target | ✅ Completed | `MovementTimer.tsx` now keeps the activity and target in local state instead of fixed props. The header activity pill is a button that opens a six-activity picker (Walk/Run/Bike/Strength/Yoga/Other), and the target inside the ring opens a modal with ±5-min stepping and 10/20/30/45/60 chips (clamped 1–600). Changing either updates the icon, calorie estimate, progress ring and encouragement live. `npm run lint`, `npx tsc --noEmit` and `npm run build` all pass. |
 | T-014 | Mobile layout: persistent full-width bottom nav + Home horizontal-overflow fix | ✅ Completed | The bottom nav is now `fixed inset-x-0 bottom-0` so it spans the device width and stays visible on every screen while scrolling; `BottomNav` emits a spacer that reserves its height (plus `env(safe-area-inset-bottom)`), and the root layout opts into `viewportFit: "cover"` with a sand `themeColor`. The nav pill/label were tightened (`w-12`, `truncate`) for narrow screens. On Home the Water + Move tiles moved from `flex` to `grid grid-cols-2` (whose `minmax(0,1fr)` tracks cannot overflow), and each tile header keeps the icon + label on the left and its action button on the right on a single, non-wrapping line (`truncate` protects the label). The Water tile's minus was removed from the header — tapping the **Water** label now opens a modal with a large oz readout, progress bar and −/+ glass stepper (plus Done), while the tile's + still logs a glass instantly. The Add-food staging cart and the Food-detail action bar now offset by the nav height + safe-area inset; `html`/`body` carry `overflow-x-hidden` as a net. `npm run lint`, `npx tsc --noEmit` and `npm run build` all pass. |
+| T-015 | Timezone-sensitive day boundaries | ✅ Completed | Added `users.timezone` (migration `0005_boring_titania.sql`) plus zone-aware calendar helpers in `app/_lib/calendar.ts` (`isValidTimeZone`/`resolveTimeZone`, `dateKeyInTimeZone`, `dayBoundsInTimeZone`/`dayBoundsForMarker`, `todayKey`/`todayMarker`, `markerAtLocalHour`) that convert local midnight to UTC instants and handle DST/half-hour zones. Every day-scoped query (`getMealsForDate`, `getMealEntries`, `getLastLoggedMealToday`, `getHistory`, `getMovementForDate`/`Overview`, `getWaterForDate`, `deleteLatestWaterEntry`) now takes the user's zone; pages/route handlers pass `resolveTimeZone(user.timezone)`, back-dated entries are stamped at local noon, and meal times/history buckets/movement weeks use local days. The zone is captured on signup/login, re-synced on load by `TimeZoneSync` → `POST /api/profile/timezone` (no-op when unchanged), and editable under Profile → Preferences. Verified the offset/DST math with a throwaway script and `npm run lint` / `npx tsc --noEmit` / `npm run build` all pass. |
 
 ---
 
