@@ -430,6 +430,10 @@ export function ProfileForm() {
           </>
         )}
       </button>
+
+      <p className="pb-1 text-center text-xs text-sand-400">
+        SparkNourish · A Sparkwell Creative product
+      </p>
     </div>
   );
 }

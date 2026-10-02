@@ -14,8 +14,11 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Sparkwell Nutrition",
+  applicationName: "SparkNourish",
+  title: "SparkNourish",
   description: "Track your meals and daily nutrition.",
+  authors: [{ name: "Sparkwell Creative" }],
+  publisher: "Sparkwell Creative",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

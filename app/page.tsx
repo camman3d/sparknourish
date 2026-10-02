@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Leaf, Plus, SlidersHorizontal } from "lucide-react";
+import { Plus, SlidersHorizontal } from "lucide-react";
+import { BrandMark } from "./_components/BrandMark";
 import { CalorieRing } from "./_components/CalorieRing";
 import { MacroBar } from "./_components/MacroBar";
 import { MealIcon, mealTint } from "./_components/MealIcon";
@@ -32,9 +33,7 @@ export default async function DashboardPage() {
     <main className="flex flex-col gap-5 px-5 pb-8 pt-8">
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-forest-800 text-forest-100">
-            <Leaf className="h-6 w-6" strokeWidth={1.75} aria-hidden />
-          </span>
+          <BrandMark className="h-12 w-12" />
           <div>
             <p className="text-sm text-sand-500">{dateLabel}</p>
             <h1 className="font-display text-2xl font-bold leading-tight text-forest-900">

@@ -1,12 +1,12 @@
-# Sparkwell Nutrition — Implementation Status & Project Audit
+# SparkNourish — Implementation Status & Project Audit
 
-This document provides a comprehensive audit of the **Sparkwell Nutrition** codebase. It outlines what features are fully implemented, what features are partially implemented, what remains unimplemented, and provides a technical analysis of architectural limitations and recommended next steps.
+This document provides a comprehensive audit of the **SparkNourish** codebase. It outlines what features are fully implemented, what features are partially implemented, what remains unimplemented, and provides a technical analysis of architectural limitations and recommended next steps.
 
 ---
 
 ## 1. Executive Summary
 
-Sparkwell Nutrition is a mobile-first web application designed for daily nutrition and calorie tracking built on **Next.js 16 (App Router)**, **PostgreSQL (via Drizzle ORM)**, and **Tailwind CSS v4**.
+SparkNourish is a mobile-first web application designed for daily nutrition and calorie tracking built on **Next.js 16 (App Router)**, **PostgreSQL (via Drizzle ORM)**, and **Tailwind CSS v4**. It is a product of **Sparkwell Creative**.
 
 * **Recently Implemented:**
   * **USDA FoodData Central:** PostgreSQL catalog (`usda_foods`) with 14,000+ imported whole, foundation, survey (FNDDS), and branded foods. Streaming zip importer script (`scripts/import-usda.ts` / `npm run db:import-usda`).
@@ -130,6 +130,7 @@ Sparkwell Nutrition is a mobile-first web application designed for daily nutriti
 | :--- | :---: | :--- |
 | **Verdant Theme** | ✅ Implemented | `app/globals.css` defines the full palette (`forest`, `coral`, `amber`, `lagoon`, `sand`), `--radius-card`/`--radius-tile`, `--shadow-card`, the two font families, plus `.card` / `.tile` component classes. Light-only by design. |
 | **Typography** | ✅ Implemented | `Bricolage Grotesque` for display/headings and large numerals, `DM Sans` for body, loaded via `next/font/google` and mapped to `--font-display` / `--font-sans`. |
+| **Brand & Logo** | ⚠️ Placeholder | Product name is **SparkNourish**, a **Sparkwell Creative** product. The logo is a placeholder leaf mark (`app/_components/BrandMark.tsx`) used on Home, login and signup; swap it for the official asset when available. Company attribution also appears in the page metadata and profile/auth footers. |
 | **Bottom Navigation** | ✅ Implemented | Four tabs — Home (`/`), Log (`/add-food`), Progress (`/history`), Profile (`/profile`) — with a forest pill active state. |
 | **Icon Library** | ✅ Implemented | `lucide-react` adopted app-wide. Named imports are automatically tree-shaken by Next.js (`optimizePackageImports`). |
 | **Meal-Type Icons** | ✅ Implemented | `app/_components/MealIcon.tsx` maps `breakfast → Sunrise`, `lunch → Soup`, `snacks → Apple`, `dinner → Moon`, and exports `mealTint` background/foreground classes. Used on the Home meal cards, meal detail header, and Add-food meal selector. |
@@ -251,6 +252,7 @@ data or behaviour yet. They render for design fidelity only; each is a `no-op`
 | ID | Task | Status | Notes |
 | :--- | :--- | :---: | :--- |
 | T-001 | Verdant UI redesign (theme + Home / Add food / Progress) | ✅ Completed | Applied the supplied theme, rebuilt the three designed screens, restyled nav, meal detail, profile and auth. Introduced `getRecentFoods()` and a staging cart, plus day-streak / macro-split derivations. `npm run lint`, `npx tsc --noEmit` and `npm run build` all pass. |
+| T-002 | Rebrand product to SparkNourish (Sparkwell Creative) | ✅ Completed | Renamed product strings, metadata (`title`/`applicationName`/`authors`/`publisher`), OpenRouter `X-Title`s and the npm package name. Added a site-wide `BrandMark` placeholder logo and "A Sparkwell Creative product" attribution on login, signup and profile. |
 
 ---
 
