@@ -126,6 +126,7 @@ export type DayLog = {
   protein: number;
   carbs: number;
   fat: number;
+  water: number;
   meals: Record<MealId, number>;
 };
 
@@ -139,14 +140,16 @@ export function historyAverages(days: DayLog[]) {
       protein: totals.protein + day.protein,
       carbs: totals.carbs + day.carbs,
       fat: totals.fat + day.fat,
+      water: totals.water + day.water,
     }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    { calories: 0, protein: 0, carbs: 0, fat: 0, water: 0 }
   );
   return {
     calories: Math.round(sum.calories / n),
     protein: Math.round(sum.protein / n),
     carbs: Math.round(sum.carbs / n),
     fat: Math.round(sum.fat / n),
+    water: Math.round(sum.water / n),
   };
 }
 

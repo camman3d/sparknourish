@@ -99,6 +99,22 @@ export const movementLogEntries = pgTable(
   ]
 );
 
+export const waterLogEntries = pgTable(
+  "water_log_entries",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    amountOz: integer("amount_oz").notNull(),
+    loggedAt: timestamp("logged_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("water_log_entries_user_date_idx").on(table.userId, table.loggedAt),
+  ]
+);
+
 export const customFoods = pgTable(
   "custom_foods",
   {
@@ -154,6 +170,8 @@ export type FoodLogEntry = typeof foodLogEntries.$inferSelect;
 export type NewFoodLogEntry = typeof foodLogEntries.$inferInsert;
 export type MovementLogEntry = typeof movementLogEntries.$inferSelect;
 export type NewMovementLogEntry = typeof movementLogEntries.$inferInsert;
+export type WaterLogEntry = typeof waterLogEntries.$inferSelect;
+export type NewWaterLogEntry = typeof waterLogEntries.$inferInsert;
 export type CustomFood = typeof customFoods.$inferSelect;
 export type NewCustomFood = typeof customFoods.$inferInsert;
 export type UsdaFood = typeof usdaFoods.$inferSelect;

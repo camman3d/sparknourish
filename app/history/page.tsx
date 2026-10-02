@@ -83,10 +83,12 @@ export default async function HistoryPage(props: PageProps<"/history">) {
           <p className="text-sm text-sand-500">avg protein</p>
         </div>
 
-        {/* Water intake is not tracked yet — intentional no-op placeholder. */}
-        <div className="tile p-4" title="Water tracking is coming soon">
+        <div className="tile p-4">
           <Droplet className="h-5 w-5 text-lagoon-600" strokeWidth={1.75} aria-hidden />
-          <p className="mt-3 font-display text-3xl font-bold tabular-nums text-forest-900">—</p>
+          <p className="mt-3 font-display text-3xl font-bold tabular-nums text-forest-900">
+            {averages.water}
+            <span className="text-base font-medium text-sand-500">oz</span>
+          </p>
           <p className="text-sm text-sand-500">avg water</p>
         </div>
       </section>

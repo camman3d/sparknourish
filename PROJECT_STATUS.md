@@ -19,11 +19,14 @@ SparkNourish is a mobile-first web application designed for daily nutrition and 
   * **Verdant UI Redesign:** New light design system — forest/coral/amber/lagoon/sand palettes, `Bricolage Grotesque` + `DM Sans` type, 28px card radii and soft shadows. Bottom navigation reworked to Home · Log · Progress · Profile, and the Home, Add food, and Progress screens were rebuilt to match the supplied designs.
   * **Add-food staging cart:** "Recent & frequent" foods (derived from the user's own log history) with multi-select staging and a single "Add to log" commit, plus redesigned quick-action tiles.
   * **Guided onboarding:** Signup is now credentials-only and hands off to a 4-step post-signup flow (`/onboarding`) that collects the fitness goal (lose / maintain / build muscle), body stats and activity level, then computes goal-adjusted calorie and macro targets.
-  * **Diary with date navigation:** Home (`/`) is rebuilt as the **Diary** design — a Monday–Sunday week strip with `?date=YYYY-MM-DD` navigation, a consumed/remaining progress bar and per-meal logged-item cards. Food can be logged into any selected day.
+  * **Home / Diary:** Home (`/`) matches the supplied greeting design — a calorie-ring card with a movement-adjusted budget pill, protein/carb/fat goal bars, side-by-side Water + Move tiles and per-meal summary rows, all for the selected day via a compact `?date=YYYY-MM-DD` day picker. Food can be logged into any selected day.
   * **Food detail screen:** New `/food/[id]` route matching the supplied design — serving stepper with Gram/Ounce/household units, daily-goal calorie ring, macro breakdown and fiber/sugar/sodium/cholesterol rows, plus an "Add to <meal>" action.
   * **Profile redesign:** `/profile` now matches the settings design — identity card with goal + streak, editable **Daily targets** (calories, protein, carbs, fat, water), preference rows and the existing AI-key / password / logout controls.
   * **Nutrient data model:** `usda_foods` and `custom_foods` gained `fiber_g`, `sugar_g`, `sodium_mg` and `cholesterol_mg`; the USDA importer captures nutrient IDs 1079/2000/1093/1253.
-  * **Movement / exercise tracking:** A full movement feature — `/move` hub (today ring, weekly bars, recent list), `/move/log` activity logger, `/move/timer` live stopwatch, `/move/complete` finish screen, and a weekly-goal step in onboarding. Backed by a `movement_log_entries` table, MET-based calorie estimates, a fifth **Move** nav tab, and a Move card + "exercise added to budget" pill on the Diary.
+  * **Movement / exercise tracking:** A full movement feature — `/move` hub (today ring, weekly bars, recent list), `/move/log` activity logger, `/move/timer` live stopwatch, `/move/complete` finish screen, and a weekly-goal step in onboarding. Backed by a `movement_log_entries` table, MET-based calorie estimates, a fifth **Move** nav tab, and a Move tile + "exercise added to budget" pill on Home.
+  * **Water tracking:** A `water_log_entries` table with `POST` / `DELETE /api/water`. The Home water tile logs 8 oz glasses (with an undo), fills against the Profile water target, and the Progress "avg water" tile now reports the range average instead of a dash.
+  * **All meals view:** The Home "View all" action opens `/meals` — a date-aware list of every meal with item-level calories/macros, a day summary, and per-meal links into the meal-detail editor.
+  * **Brand assets:** The official SparkNourish app icon and wordmark logo ship in `public/` and are wired into the Home header, auth screens and the favicon / app-icon metadata.
 
 ---
 
@@ -103,12 +106,13 @@ SparkNourish is a mobile-first web application designed for daily nutrition and 
 
 | Feature | Status | Implementation Details |
 | :--- | :---: | :--- |
-| **Diary Header & Week Strip** | ✅ Implemented | `Diary` title with the selected month and a Monday–Sunday week strip in `app/page.tsx`; each day links via `?date=YYYY-MM-DD` (Today highlighted, selected day in a forest pill). Helpers live in `app/_lib/calendar.ts`. |
-| **Consumed / Remaining Bar** | ✅ Implemented | `1,050 of 2,000 kcal` alongside `950 left`, with a horizontal progress bar that turns coral on over-goal days. |
-| **Per-Meal Cards** | ✅ Implemented | Breakfast, Lunch, Snack, Dinner cards with tinted icons, item-level `name / quantity / kcal` rows and meal kcal totals; unlogged meals render the dashed row with a coral "Add" button deep-linking to `/add-food?meal=…&date=…`. |
-| **Water Tracker** | ⚠️ Removed | The water card was dropped from the Diary screen to match the new design. `app/_components/WaterTracker.tsx` remains but is no longer rendered. See §6. |
-| **"View all" Meals** | ⚠️ Removed | The old "Today's meals" header action was removed with the redesign; there is still no all-meals view. |
-| **Date Navigation** | ✅ Implemented | The week strip selects any day; `getMealsForDate()` / `getMealEntries()` bucket logs per selected day and `/add-food` + `/api/food-log` accept a `date` so entries can be logged into past/future days. |
+| **Greeting Header** | ✅ Implemented | `app/page.tsx` opens with the `BrandMark`, the selected date and a "Good morning / afternoon / evening, {name}" greeting (time-of-day based), plus a settings button linking to `/profile`. |
+| **Compact Date Picker** | ✅ Implemented | The selected date is flanked by small ‹ › day arrows that navigate via `?date=YYYY-MM-DD`; the chosen date flows through to the meal rows, `/add-food` and `/api/food-log` so entries can be logged into past/future days. The weekday is rendered from `app/_lib/calendar.ts` (`shortDateLabel`). |
+| **Calorie Ring Card** | ✅ Implemented | Daily-goal donut (`CalorieRing`) showing `% of goal` alongside "Remaining today"; when movement calories are added to the budget it relabels to `of budget` and shows the plum "+N from moving" pill. Backed by `getMealsForDate()`. |
+| **Macro Bars** | ✅ Implemented | Protein / Carbs / Fat progress bars (`MacroBar`) against the user's per-macro goals, separated from the ring by a hairline rule. |
+| **Water & Move Tiles** | ✅ Implemented | Two side-by-side tiles: an interactive `WaterTracker` (lagoon) that logs 8 oz glasses against the Profile water target via `/api/water` with optimistic updates and an undo, and the `MoveTile` (plum) showing `{minutes} min of {dailyMoveGoal}` for the day from `getMovementForDate()`, deep-linking to `/move` and `/move/log`. Water totals come from `getWaterForDate()`. |
+| **Per-Meal Rows** | ✅ Implemented | "Today's meals" card lists Breakfast, Lunch, Snack, Dinner with tinted icons, a `P · C · F` summary and meal kcal totals; unlogged meals render the dashed row with a coral "Add" button deep-linking to `/add-food?meal=…&date=…`. Logged rows open `/meals/[mealId]?date=…`. |
+| **"View all" Meals** | ✅ Implemented | The Home "View all" action opens `/meals?date=…`, a date-aware all-meals page: a day summary (kcal + `MacroBar` grid) followed by every meal card with its item-level `name / quantity / kcal` and per-item macros. Logged meal headers link to `/meals/[mealId]` for edit/delete; unlogged meals deep-link to `/add-food`. Data comes from `getMealsForDate()`. |
 | **Timezone Sensitivity** | ⚠️ Partial | Server queries calculate start-of-day in UTC (`app/_lib/calendar.ts`), which can cause mismatch around day boundaries. |
 
 ---
@@ -122,7 +126,7 @@ SparkNourish is a mobile-first web application designed for daily nutrition and 
 | **Day Streak** |  Implemented | `dayStreak()` counts consecutive logged days ending at the most recent day with data (a leading empty day is tolerated). |
 | **Macro Split** |  Implemented | `MacroSplit.tsx` stacked bar + legend showing the share of calories from protein/carbs/fat (`macroSplitCalories()`). |
 | **Protein Gap Insight** | ⚠️ Partial | Headline/body computed deterministically from the protein gap vs goal. The suggested fix ("A yogurt at breakfast adds 17g") is static copy, not an AI recommendation. See §6. |
-| **Average Water** | ⚠️ No-op | Stat tile shows `—`; water intake is not tracked. See §6. |
+| **Average Water** | ✅ Implemented | Stat tile reports the range average from `historyAverages().water`; `getHistory()` sums `water_log_entries` per day alongside food, so the tile updates with the selected range. |
 | **Calorie Delta Chart** | 🔁 Superseded | `CalorieDeltaChart.tsx` was removed in the redesign and replaced by `CalorieBars.tsx`. |
 | **Meal Breakdown / Daily Log** | 🔁 Superseded | `MealBreakdownBar.tsx` and the reverse-chronological daily log table were removed from the screen to match the Progress design. Day-level data is still produced by `getHistory()`. |
 | **Clickable History Days** | ❌ Not Implemented | No itemized drill-down from a history day into the foods logged. |
@@ -157,7 +161,7 @@ SparkNourish is a mobile-first web application designed for daily nutrition and 
 | :--- | :---: | :--- |
 | **Verdant Theme** | ✅ Implemented | `app/globals.css` defines the full palette (`forest`, `coral`, `amber`, `lagoon`, `sand`), `--radius-card`/`--radius-tile`, `--shadow-card`, the two font families, plus `.card` / `.tile` component classes. Light-only by design. |
 | **Typography** | ✅ Implemented | `Bricolage Grotesque` for display/headings and large numerals, `DM Sans` for body, loaded via `next/font/google` and mapped to `--font-display` / `--font-sans`. |
-| **Brand & Logo** | ⚠️ Placeholder | Product name is **SparkNourish**, a **Sparkwell Creative** product. The logo is a placeholder leaf mark (`app/_components/BrandMark.tsx`) used on Home, login and signup; swap it for the official asset when available. Company attribution also appears in the page metadata and profile/auth footers. |
+| **Brand & Logo** | ✅ Implemented | Official assets in `public/` — `BrandMark.tsx` renders the app icon (`/SparkNourishIcon.png`) in the Home header, and login/signup show the wordmark (`/SparkNourishLogo.png`). The favicon and app icons are wired via file conventions (`app/favicon.ico`, `app/icon.png`, `app/apple-icon.png`). Product name **SparkNourish**, a **Sparkwell Creative** product; attribution also appears in the page metadata and profile/auth footers. |
 | **Bottom Navigation** | ✅ Implemented | Five tabs — Home (`/`), Log (`/add-food`), Move (`/move`), Progress (`/history`), Profile (`/profile`) — with a forest pill active state. The nav hides itself on the immersive `/move/log`, `/move/timer` and `/move/complete` screens. |
 | **Icon Library** | ✅ Implemented | `lucide-react` adopted app-wide. Named imports are automatically tree-shaken by Next.js (`optimizePackageImports`). |
 | **Meal-Type Icons** | ✅ Implemented | `app/_components/MealIcon.tsx` maps `breakfast → Sunrise`, `lunch → Soup`, `snacks → Apple`, `dinner → Moon`, and exports `mealTint` background/foreground classes. Used on the Home meal cards, meal detail header, and Add-food meal selector. |
@@ -175,7 +179,7 @@ SparkNourish is a mobile-first web application designed for daily nutrition and 
 | **Live Timer (`/move/timer`)** | ✅ Implemented | Full-screen stopwatch with a plum progress ring against the target, elapsed `mm:ss`, kcal-so-far and minutes-to-goal stats, rotating encouragement, pause/resume, and a "Finish …" action that logs the elapsed time. Auto-starts; warns before discarding a session. |
 | **Completion Screen (`/move/complete`)** | ✅ Implemented | Confetti hero with a check, "Nice {activity}, {name}", the duration/calorie summary, the updated week card ("… minutes to go. You've moved N days this week."), an **Add N kcal to today's budget** toggle (`users.add_exercise_to_budget`), Done and Edit details. |
 | **Calorie Estimate** | ✅ Implemented | `estimateCalories()` (`app/_lib/movement.ts`) uses activity MET values × intensity factor × body weight × hours. The client preview and the server write share the same helper so numbers always agree. |
-| **Budget Integration** | ✅ Implemented | The Diary adds the day's movement calories to the calorie budget when `add_exercise_to_budget` is on and shows a plum "+N from moving" pill; the Move card shows `minutes of daily target`. |
+| **Budget Integration** | ✅ Implemented | Home adds the day's movement calories to the calorie budget when `add_exercise_to_budget` is on and shows a plum "+N from moving" pill; the Move tile shows `minutes of daily target`. |
 | **Onboarding Goal** | ✅ Implemented | A fifth onboarding step ("How much do you want to move?") offers Ease in (90) / Steady (150, Suggested) / Active (250) plus "No movement goal", writing `weekly_move_goal_min`. |
 | **Profile Controls** | ✅ Implemented | New Movement card: editable weekly goal modal and an "Add exercise to calories" on/off row. |
 
@@ -187,6 +191,7 @@ SparkNourish is a mobile-first web application designed for daily nutrition and 
 erDiagram
     users ||--o{ food_log_entries : "has many"
     users ||--o{ movement_log_entries : "has many"
+    users ||--o{ water_log_entries : "has many"
     users ||--o{ custom_foods : "has many"
 
     users {
@@ -237,6 +242,14 @@ erDiagram
         integer duration_min
         movement_intensity intensity
         integer calories
+        timestamp with_tz logged_at
+        timestamp with_tz created_at
+    }
+
+    water_log_entries {
+        serial id PK
+        integer user_id FK
+        integer amount_oz
         timestamp with_tz logged_at
         timestamp with_tz created_at
     }
@@ -294,6 +307,8 @@ erDiagram
 | `/api/movement` | `POST` |  Yes | Logs a movement entry (activity, minutes, intensity); calories are estimated server-side from the user's weight. |
 | `/api/movement/[id]` | `PATCH` |  Yes | Updates a movement entry's activity, duration and intensity (and recomputes calories). |
 | `/api/movement/[id]` | `DELETE`|  Yes | Removes a movement entry belonging to the user. |
+| `/api/water` | `POST` |  Yes | Logs a water entry (`amountOz`, optional `date`); the Home tile posts an 8 oz glass. |
+| `/api/water` | `DELETE`|  Yes | Removes the most recent water entry for the given `date` (the tile's undo). |
 | `/api/custom-foods` | `GET` |  Yes | Returns all custom foods created by authenticated user. |
 | `/api/custom-foods` | `POST` |  Yes | Creates a new custom food item. |
 | `/api/custom-foods/[id]` | `DELETE`|  Yes | Deletes a custom food item owned by the user. |
@@ -311,12 +326,9 @@ data or behaviour yet. They render for design fidelity only; each is a `no-op`
 
 | UI Element | Location | Reason |
 | :--- | :--- | :--- |
-| Water card | (removed) | `app/_components/WaterTracker.tsx` is no longer rendered — the Diary design drops it. The Profile "Water" daily target is stored (`users.water_goal_oz`) but no water entries are logged. |
-| "View all" on Today's meals | (removed) | The old header action was removed with the Diary redesign; there is still no all-meals route. |
 | "Snap photo" tile | Add food (`FoodSearch.tsx`) | Photo/vision meal logging is not implemented. |
 | "My meals" tile | Add food (`FoodSearch.tsx`) | Saved/favourite multi-item meals are not implemented. |
 | Barcode scan button | Add food search bar | Barcode scanning is not implemented (`getRecentFoods` powers the list instead). |
-| "avg water" stat tile (`—`) | Progress (`app/history/page.tsx`) | No water data exists. |
 | Protein-gap fix tip ("A yogurt at breakfast adds 17g") | Progress insight card | Static copy; no AI recommendation engine. The headline/gap value are computed for real. |
 | Favourite star | Food detail (`/food/[id]`) | Local toggle only; there is no favourites table or endpoint. |
 | Connected apps · Appearance rows | Profile (`ProfileForm.tsx`) | Static rows; no Health integration and no dark theme exist. |
@@ -332,20 +344,25 @@ data or behaviour yet. They render for design fidelity only; each is a `no-op`
 | T-001 | Verdant UI redesign (theme + Home / Add food / Progress) | ✅ Completed | Applied the supplied theme, rebuilt the three designed screens, restyled nav, meal detail, profile and auth. Introduced `getRecentFoods()` and a staging cart, plus day-streak / macro-split derivations. `npm run lint`, `npx tsc --noEmit` and `npm run build` all pass. |
 | T-002 | Rebrand product to SparkNourish (Sparkwell Creative) | ✅ Completed | Renamed product strings, metadata (`title`/`applicationName`/`authors`/`publisher`), OpenRouter `X-Title`s and the npm package name. Added a site-wide `BrandMark` placeholder logo and "A Sparkwell Creative product" attribution on login, signup and profile. |
 | T-003 | Guided post-signup onboarding | ✅ Completed | Signup is credentials-only; added `/onboarding` (Welcome → Goal → About you → Activity) + `POST /api/onboarding`, a `fitness_goal` enum and `onboarding_completed` flag, and goal-aware `computeGoals()`. `requireUser()` funnels incomplete accounts to onboarding. |
-| T-004 | Diary redesign with date navigation | ✅ Completed | Rebuilt Home as the Diary design: week strip with `?date=YYYY-MM-DD`, consumed/remaining bar and per-meal item cards. Added `getMealsForDate()` / date-aware `getMealEntries()` and `date` support on `/add-food` + `/api/food-log`. Helpers in `app/_lib/calendar.ts`. |
+| T-004 | Diary redesign with date navigation | 🔁 Superseded | Rebuilt Home as a week-strip Diary (Monday–Sunday strip, consumed/remaining bar, per-meal item cards) and added `getMealsForDate()` / date-aware `getMealEntries()` plus `date` support on `/add-food` + `/api/food-log`. The week-strip layout was later replaced by the greeting Home design in T-008; the date-navigation helpers in `app/_lib/calendar.ts` remain. |
 | T-005 | Food detail screen + nutrient data | ✅ Completed | New `/food/[id]` screen (serving stepper, calorie ring, macro/micro rows, Add to meal). Added `fiber_g`/`sugar_g`/`sodium_mg`/`cholesterol_mg` to `usda_foods` + `custom_foods`, extended the importer, and re-imported 33,694 USDA foods. |
 | T-006 | Profile redesign | ✅ Completed | `/profile` rebuilt to the settings design: identity card (goal + streak), editable Daily targets incl. water, reminder/units/preferences rows, and retained AI key, password and logout. |
-| T-007 | Movement / exercise tracking | ✅ Completed | New `/move` hub, `/move/log` activity logger, `/move/timer` live timer, `/move/complete` finish screen and a movement step in onboarding. Adds a `movement_log_entries` table, weekly move goal + "add exercise to calories" user settings, a fifth Move nav tab, a Move card and exercise-calorie budget pill on the Diary, and a Movement section in Profile. `npm run lint`, `npx tsc --noEmit` and `npm run build` all pass. |
+| T-007 | Movement / exercise tracking | ✅ Completed | New `/move` hub, `/move/log` activity logger, `/move/timer` live timer, `/move/complete` finish screen and a movement step in onboarding. Adds a `movement_log_entries` table, weekly move goal + "add exercise to calories" user settings, a fifth Move nav tab, a Move tile and exercise-calorie budget pill on Home, and a Movement section in Profile. `npm run lint`, `npx tsc --noEmit` and `npm run build` all pass. |
+| T-008 | Home screen: greeting design + Move tile | ✅ Completed | Rebuilt Home (`/`) to the pre-movement greeting design with a movement tile: `BrandMark` header with a compact ‹ › day picker, `CalorieRing` card (now supports an `of budget` caption when movement is added, with the plum "+N from moving" pill), `MacroBar` grid, side-by-side `WaterTracker` + new `MoveTile`, and per-meal summary rows with a "View all" action (later wired up in T-010). Added `app/_components/MoveTile.tsx`, made `CalorieRing`'s caption configurable and reworked `WaterTracker` into a compact tile. Removed the T-004 week strip. `npm run lint`, `npx tsc --noEmit` and `npm run build` all pass. |
+| T-009 | Water tracking | ✅ Completed | New `water_log_entries` table (migration `0004_clear_spectrum.sql`) and `POST` / `DELETE /api/water`. `WaterTracker` is now a client component that logs 8 oz glasses against `users.water_goal_oz` with optimistic updates and an undo, and `getHistory()` sums water per day so the Progress "avg water" tile reports the range average. `npm run lint`, `npx tsc --noEmit` and `npm run build` all pass; the query layer was smoke-tested against Postgres (add → 8, undo → 0). |
+| T-010 | All meals page | ✅ Completed | New `/meals` list route alongside `/meals/[mealId]`: a date-aware day summary (kcal + `MacroBar` grid) and item-level meal cards (`getMealsForDate()`), with logged headers linking to the detail editor and unlogged meals deep-linking to `/add-food`. The Home "View all" action now links to `/meals?date=…`, and the design no-op was removed. `npm run lint`, `npx tsc --noEmit` and `npm run build` all pass. |
+| T-011 | Brand icon & logo | ✅ Completed | Wired the supplied assets in `public/`: `BrandMark` renders `SparkNourishIcon.png` (Home header), login/signup show the `SparkNourishLogo.png` wordmark, and `app/favicon.ico` / `app/icon.png` / `app/apple-icon.png` supply the favicon and app icons. Verified the rendered `<head>` emits all three icon links and the assets return 200. `npm run lint`, `npx tsc --noEmit` and `npm run build` all pass. |
+| T-012 | Fix: public assets blocked by auth proxy | ✅ Completed | The `proxy.ts` matcher auth-redirected every non-API path, including `public/` files, so unauthenticated pages (login/signup) got a 307 → `/login` for `/SparkNourishIcon.png`. The image optimizer fetched that HTML and failed with "The requested resource isn't a valid image … received null". Added an image-extension exclusion to the matcher; assets now return 200 without a session and the optimizer returns the PNG. `npm run lint` and `npm run build` pass. |
 
 ---
 
 ## 8. Recommended Next Steps
 
-1. **Water Tracking:** Add a `water_log_entries` table + endpoint and wire the Profile water target and the Progress "avg water" tile.
-2. **Saved Meals / Recipes:** Back the "My meals" tile with reusable meal templates that can be staged in one tap.
-3. **Barcode Scanning:** Mobile camera barcode scanning for packaged foods.
-4. **Clickable History Days:** Allow users to tap a day on Progress to review the foods logged that day (day-level data already exists).
-5. **Favourites:** Back the food-detail star with a `favourite_foods` table and surface favourites in Add food.
-6. **Notifications:** Turn the Profile reminders toggle into scheduled meal/water/movement nudges.
-7. **Movement insights:** Surface movement in Progress (weekly trend + streaks) and let logged sessions be deleted/edited from the Move screen (the PATCH/DELETE endpoints already exist).
+1. **Saved Meals / Recipes:** Back the "My meals" tile with reusable meal templates that can be staged in one tap.
+2. **Barcode Scanning:** Mobile camera barcode scanning for packaged foods.
+3. **Clickable History Days:** Allow users to tap a day on Progress to review the foods logged that day (day-level data already exists).
+4. **Favourites:** Back the food-detail star with a `favourite_foods` table and surface favourites in Add food.
+5. **Notifications:** Turn the Profile reminders toggle into scheduled meal/water/movement nudges.
+6. **Movement insights:** Surface movement in Progress (weekly trend + streaks) and let logged sessions be deleted/edited from the Move screen (the PATCH/DELETE endpoints already exist).
+7. **Water history insight:** Add a per-day water trend/streak to Progress now that `water_log_entries` exists.
 

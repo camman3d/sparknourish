@@ -6,10 +6,12 @@ import {
   movementLogEntries,
   usdaFoods,
   users,
+  waterLogEntries,
   type FoodLogEntry,
   type MovementLogEntry,
   type NewUser,
   type User,
+  type WaterLogEntry,
 } from "./schema";
 import { mealOptions, type DayLog, type HistoryRange, type MealId } from "../app/_lib/mock-data";
 import { addDays, dateKey, startOfDayUtc } from "../app/_lib/calendar";
@@ -136,7 +138,11 @@ export async function addFoodLogEntry(entry: {
 export async function getHistory(userId: number, days: HistoryRange): Promise<DayLog[]> {
   const todayStart = startOfDayUtc(new Date());
   const rangeStart = addDays(todayStart, -(days - 1));
-  const entries = await getEntriesBetween(userId, rangeStart, addDays(todayStart, 1));
+  const rangeEnd = addDays(todayStart, 1);
+  const [entries, water] = await Promise.all([
+    getEntriesBetween(userId, rangeStart, rangeEnd),
+    getWaterBetween(userId, rangeStart, rangeEnd),
+  ]);
 
   const byDate = new Map<string, FoodLogEntry[]>();
   for (const entry of entries) {
@@ -144,6 +150,12 @@ export async function getHistory(userId: number, days: HistoryRange): Promise<Da
     const bucket = byDate.get(key);
     if (bucket) bucket.push(entry);
     else byDate.set(key, [entry]);
+  }
+
+  const waterByDate = new Map<string, number>();
+  for (const entry of water) {
+    const key = dateKey(entry.loggedAt);
+    waterByDate.set(key, (waterByDate.get(key) ?? 0) + entry.amountOz);
   }
 
   const weekdayFmt = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" });
@@ -165,6 +177,7 @@ export async function getHistory(userId: number, days: HistoryRange): Promise<Da
       protein: totals.protein,
       carbs: totals.carbs,
       fat: totals.fat,
+      water: waterByDate.get(dateKey(day)) ?? 0,
       meals,
     });
   }
@@ -546,6 +559,68 @@ export async function deleteMovementEntry(userId: number, entryId: number) {
   const [deleted] = await db
     .delete(movementLogEntries)
     .where(and(eq(movementLogEntries.id, entryId), eq(movementLogEntries.userId, userId)))
+    .returning();
+  return deleted ?? null;
+}
+
+// --- Water -------------------------------------------------------------------
+
+async function getWaterBetween(userId: number, start: Date, end: Date) {
+  return db
+    .select()
+    .from(waterLogEntries)
+    .where(
+      and(
+        eq(waterLogEntries.userId, userId),
+        gte(waterLogEntries.loggedAt, start),
+        lt(waterLogEntries.loggedAt, end)
+      )
+    )
+    .orderBy(desc(waterLogEntries.loggedAt), desc(waterLogEntries.id));
+}
+
+/** Water logged on a single day — used by the Home water tile. */
+export async function getWaterForDate(userId: number, date: Date) {
+  const dayStart = startOfDayUtc(date);
+  const entries = await getWaterBetween(userId, dayStart, addDays(dayStart, 1));
+  return {
+    totalOz: entries.reduce((sum, entry) => sum + entry.amountOz, 0),
+    entries,
+  };
+}
+
+export async function addWaterEntry(entry: {
+  userId: number;
+  amountOz: number;
+  loggedAt?: Date;
+}): Promise<WaterLogEntry> {
+  const [created] = await db
+    .insert(waterLogEntries)
+    .values({ ...entry, loggedAt: entry.loggedAt ?? new Date() })
+    .returning();
+  return created;
+}
+
+/** Removes the most recently logged water entry for a given day (undo a glass). */
+export async function deleteLatestWaterEntry(userId: number, date: Date) {
+  const dayStart = startOfDayUtc(date);
+  const [latest] = await db
+    .select()
+    .from(waterLogEntries)
+    .where(
+      and(
+        eq(waterLogEntries.userId, userId),
+        gte(waterLogEntries.loggedAt, dayStart),
+        lt(waterLogEntries.loggedAt, addDays(dayStart, 1))
+      )
+    )
+    .orderBy(desc(waterLogEntries.loggedAt), desc(waterLogEntries.id))
+    .limit(1);
+
+  if (!latest) return null;
+  const [deleted] = await db
+    .delete(waterLogEntries)
+    .where(and(eq(waterLogEntries.id, latest.id), eq(waterLogEntries.userId, userId)))
     .returning();
   return deleted ?? null;
 }

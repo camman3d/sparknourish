@@ -2,10 +2,13 @@ export function CalorieRing({
   pct,
   size = 120,
   stroke = 12,
+  label = "of goal",
 }: {
   pct: number;
   size?: number;
   stroke?: number;
+  /** Caption under the percentage — "of goal", or "of budget" when movement is added. */
+  label?: string;
 }) {
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -39,7 +42,7 @@ export function CalorieRing({
         <span className="font-display text-3xl font-bold leading-none text-forest-900">
           {Math.round(pct)}%
         </span>
-        <span className="mt-1 text-xs text-sand-500">of goal</span>
+        <span className="mt-1 text-xs text-sand-500">{label}</span>
       </div>
     </div>
   );
