@@ -1,6 +1,7 @@
 import { FoodSearch } from "./FoodSearch";
 import { requireUser } from "../_lib/auth";
 import { mealOptions, type MealId } from "../_lib/mock-data";
+import { dateKey, parseDateKey, todayUtc } from "../_lib/calendar";
 import { getLastLoggedMealToday, getRecentFoods } from "../../db/queries";
 
 const VALID_MEALS: MealId[] = mealOptions.map((meal) => meal.id);
@@ -8,6 +9,9 @@ const VALID_MEALS: MealId[] = mealOptions.map((meal) => meal.id);
 export default async function AddFoodPage(props: PageProps<"/add-food">) {
   const params = await props.searchParams;
   const requested = Array.isArray(params.meal) ? params.meal[0] : params.meal;
+  const requestedDate = Array.isArray(params.date) ? params.date[0] : params.date;
+  const date = parseDateKey(requestedDate) ?? todayUtc();
+  const dateParam = dateKey(date);
 
   const user = await requireUser();
 
@@ -26,7 +30,8 @@ export default async function AddFoodPage(props: PageProps<"/add-food">) {
     weekday: "short",
     month: "short",
     day: "numeric",
-  }).format(new Date());
+    timeZone: "UTC",
+  }).format(date);
 
   return (
     <main className="flex flex-col gap-5 px-5 pb-28 pt-8">
@@ -35,7 +40,7 @@ export default async function AddFoodPage(props: PageProps<"/add-food">) {
         <p className="pb-1 text-sm text-sand-500">{dateLabel}</p>
       </header>
 
-      <FoodSearch initialMeal={initialMeal} recent={recent} />
+      <FoodSearch initialMeal={initialMeal} date={dateParam} recent={recent} />
     </main>
   );
 }

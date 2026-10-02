@@ -1,7 +1,14 @@
+import { redirect } from "next/navigation";
 import { BrandMark } from "../_components/BrandMark";
+import { getSessionUser } from "../_lib/auth";
 import { SignupForm } from "./SignupForm";
 
-export default function SignupPage() {
+// Same DB-backed check as /login — see the proxy note for why.
+export const dynamic = "force-dynamic";
+
+export default async function SignupPage() {
+  if (await getSessionUser()) redirect("/");
+
   return (
     <main className="flex min-h-[80vh] flex-col justify-center gap-6 px-5 py-10">
       <header className="flex flex-col gap-5">
@@ -12,7 +19,7 @@ export default function SignupPage() {
         <div>
           <h1 className="font-display text-3xl font-bold text-forest-900">Create your account</h1>
           <p className="mt-1 text-sm text-sand-500">
-            We&apos;ll use your health info to set daily calorie and macro goals.
+            Just the basics for now — we&apos;ll personalize your calorie and macro goals next.
           </p>
         </div>
       </header>

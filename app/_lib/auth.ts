@@ -31,9 +31,11 @@ export const getSessionUser = cache(async (): Promise<User | null> => {
   return user ?? null;
 });
 
-// Returns the logged-in user or redirects to /login. Use in pages.
+// Returns the logged-in user or redirects to /login. Users who have not
+// finished the guided onboarding are sent there first. Use in pages.
 export async function requireUser(): Promise<User> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
+  if (!user.onboardingCompleted) redirect("/onboarding");
   return user;
 }

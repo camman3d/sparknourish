@@ -3,13 +3,17 @@ import { db } from "./index";
 import {
   customFoods,
   foodLogEntries,
+  movementLogEntries,
   usdaFoods,
   users,
   type FoodLogEntry,
+  type MovementLogEntry,
   type NewUser,
   type User,
 } from "./schema";
 import { mealOptions, type DayLog, type HistoryRange, type MealId } from "../app/_lib/mock-data";
+import { addDays, dateKey, startOfDayUtc } from "../app/_lib/calendar";
+import type { MovementIntensity, MovementType } from "../app/_lib/movement";
 
 export type PublicUser = Omit<User, "passwordHash">;
 
@@ -26,20 +30,6 @@ export async function updateUser(userId: number, patch: Partial<NewUser>) {
     .where(eq(users.id, userId))
     .returning();
   return updated;
-}
-
-function startOfDayUtc(date: Date) {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-}
-
-function addDays(date: Date, days: number) {
-  const result = new Date(date);
-  result.setUTCDate(result.getUTCDate() + days);
-  return result;
-}
-
-function dateKeyUtc(date: Date) {
-  return date.toISOString().slice(0, 10);
 }
 
 function formatTime(date: Date) {
@@ -80,9 +70,9 @@ export type MealSummary = {
   totals: { calories: number; protein: number; carbs: number; fat: number };
 };
 
-export async function getTodayMeals(userId: number) {
-  const today = startOfDayUtc(new Date());
-  const entries = await getEntriesBetween(userId, today, addDays(today, 1));
+export async function getMealsForDate(userId: number, date: Date) {
+  const dayStart = startOfDayUtc(date);
+  const entries = await getEntriesBetween(userId, dayStart, addDays(dayStart, 1));
 
   const meals: MealSummary[] = mealOptions.map((option) => {
     const items = entries.filter((entry) => entry.mealType === option.id);
@@ -98,9 +88,13 @@ export async function getTodayMeals(userId: number) {
   return { meals, totals: sumMacros(entries) };
 }
 
-export async function getMealEntries(userId: number, mealId: MealId) {
-  const today = startOfDayUtc(new Date());
-  const entries = await getEntriesBetween(userId, today, addDays(today, 1));
+export async function getTodayMeals(userId: number) {
+  return getMealsForDate(userId, new Date());
+}
+
+export async function getMealEntries(userId: number, mealId: MealId, date?: Date) {
+  const dayStart = startOfDayUtc(date ?? new Date());
+  const entries = await getEntriesBetween(userId, dayStart, addDays(dayStart, 1));
   return entries.filter((entry) => entry.mealType === mealId);
 }
 
@@ -130,10 +124,11 @@ export async function addFoodLogEntry(entry: {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  loggedAt?: Date;
 }) {
   const [created] = await db
     .insert(foodLogEntries)
-    .values({ ...entry, loggedAt: new Date() })
+    .values({ ...entry, loggedAt: entry.loggedAt ?? new Date() })
     .returning();
   return created;
 }
@@ -145,7 +140,7 @@ export async function getHistory(userId: number, days: HistoryRange): Promise<Da
 
   const byDate = new Map<string, FoodLogEntry[]>();
   for (const entry of entries) {
-    const key = dateKeyUtc(entry.loggedAt);
+    const key = dateKey(entry.loggedAt);
     const bucket = byDate.get(key);
     if (bucket) bucket.push(entry);
     else byDate.set(key, [entry]);
@@ -157,13 +152,13 @@ export async function getHistory(userId: number, days: HistoryRange): Promise<Da
   const out: DayLog[] = [];
   for (let i = days - 1; i >= 0; i--) {
     const day = addDays(todayStart, -i);
-    const dayEntries = byDate.get(dateKeyUtc(day)) ?? [];
+    const dayEntries = byDate.get(dateKey(day)) ?? [];
     const totals = sumMacros(dayEntries);
     const meals: Record<MealId, number> = { breakfast: 0, lunch: 0, dinner: 0, snacks: 0 };
     for (const entry of dayEntries) meals[entry.mealType] += entry.calories;
 
     out.push({
-      date: dateKeyUtc(day),
+      date: dateKey(day),
       label: labelFmt.format(day),
       weekday: weekdayFmt.format(day),
       calories: totals.calories,
@@ -214,6 +209,10 @@ export async function createCustomFood(
     proteinG: number;
     carbsG: number;
     fatG: number;
+    fiberG?: number;
+    sugarG?: number;
+    sodiumMg?: number;
+    cholesterolMg?: number;
   }
 ) {
   const [created] = await db
@@ -221,6 +220,85 @@ export async function createCustomFood(
     .values({ ...food, userId })
     .returning();
   return created;
+}
+
+export type FoodDetail = {
+  id: string;
+  source: "custom" | "usda";
+  name: string;
+  subtitle: string | null;
+  servingSize: string;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  fiberG: number;
+  sugarG: number;
+  sodiumMg: number;
+  cholesterolMg: number;
+};
+
+const usdaDataTypeLabels: Record<string, string> = {
+  survey_fndds_food: "Survey food",
+  sr_legacy_food: "Standard reference",
+  foundation_food: "Foundation food",
+  branded_food: "Branded",
+};
+
+/**
+ * Look up a food for the detail screen. `id` is the same prefixed id used by
+ * the Add-food search (`custom-123` / `usda-456`).
+ */
+export async function getFoodDetail(userId: number, id: string): Promise<FoodDetail | null> {
+  if (id.startsWith("custom-")) {
+    const foodId = Number(id.slice("custom-".length));
+    if (!Number.isInteger(foodId)) return null;
+    const [food] = await db
+      .select()
+      .from(customFoods)
+      .where(and(eq(customFoods.id, foodId), eq(customFoods.userId, userId)))
+      .limit(1);
+    if (!food) return null;
+    return {
+      id,
+      source: "custom",
+      name: food.name,
+      subtitle: "Custom food",
+      servingSize: food.servingSize,
+      calories: food.calories,
+      proteinG: food.proteinG,
+      carbsG: food.carbsG,
+      fatG: food.fatG,
+      fiberG: food.fiberG,
+      sugarG: food.sugarG,
+      sodiumMg: food.sodiumMg,
+      cholesterolMg: food.cholesterolMg,
+    };
+  }
+
+  if (id.startsWith("usda-")) {
+    const fdcId = Number(id.slice("usda-".length));
+    if (!Number.isInteger(fdcId)) return null;
+    const [food] = await db.select().from(usdaFoods).where(eq(usdaFoods.fdcId, fdcId)).limit(1);
+    if (!food) return null;
+    return {
+      id,
+      source: "usda",
+      name: food.name,
+      subtitle: food.brandOwner || usdaDataTypeLabels[food.dataType] || null,
+      servingSize: food.servingSize,
+      calories: food.calories,
+      proteinG: food.proteinG,
+      carbsG: food.carbsG,
+      fatG: food.fatG,
+      fiberG: food.fiberG,
+      sugarG: food.sugarG,
+      sodiumMg: food.sodiumMg,
+      cholesterolMg: food.cholesterolMg,
+    };
+  }
+
+  return null;
 }
 
 export async function getCustomFoods(userId: number) {
@@ -318,5 +396,157 @@ export async function getRecentFoods(userId: number, limit = 6): Promise<RecentF
       carbsG: Number(row.carbs_g),
       fatG: Number(row.fat_g),
     }));
+}
+
+// --- Movement / exercise -----------------------------------------------------
+
+async function getMovementBetween(userId: number, start: Date, end: Date) {
+  return db
+    .select()
+    .from(movementLogEntries)
+    .where(
+      and(
+        eq(movementLogEntries.userId, userId),
+        gte(movementLogEntries.loggedAt, start),
+        lt(movementLogEntries.loggedAt, end)
+      )
+    )
+    .orderBy(desc(movementLogEntries.loggedAt), desc(movementLogEntries.id));
+}
+
+function sumMovement(entries: MovementLogEntry[]) {
+  return entries.reduce(
+    (totals, entry) => ({
+      minutes: totals.minutes + entry.durationMin,
+      calories: totals.calories + entry.calories,
+    }),
+    { minutes: 0, calories: 0 }
+  );
+}
+
+export type MovementDay = {
+  key: string;
+  weekday: string;
+  minutes: number;
+  isToday: boolean;
+  isFuture: boolean;
+};
+
+export type MovementOverview = {
+  today: { minutes: number; calories: number; entries: MovementLogEntry[] };
+  week: { totalMinutes: number; days: MovementDay[]; movedDays: number };
+  recent: MovementLogEntry[];
+};
+
+/** Movement logged on a single day — used by the Diary's Move card. */
+export async function getMovementForDate(userId: number, date: Date) {
+  const dayStart = startOfDayUtc(date);
+  const entries = await getMovementBetween(userId, dayStart, addDays(dayStart, 1));
+  return { ...sumMovement(entries), entries };
+}
+
+/** Today + the Monday–Sunday week containing it, plus the most recent entries. */
+export async function getMovementOverview(
+  userId: number,
+  date = new Date()
+): Promise<MovementOverview> {
+  const dayStart = startOfDayUtc(date);
+  const dow = dayStart.getUTCDay(); // 0 = Sunday
+  const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  const weekStart = addDays(dayStart, mondayOffset);
+  const weekEnd = addDays(weekStart, 7);
+
+  const [weekEntries, recent] = await Promise.all([
+    getMovementBetween(userId, weekStart, weekEnd),
+    db
+      .select()
+      .from(movementLogEntries)
+      .where(eq(movementLogEntries.userId, userId))
+      .orderBy(desc(movementLogEntries.loggedAt), desc(movementLogEntries.id))
+      .limit(4),
+  ]);
+
+  const weekdayFmt = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" });
+  const todayKey = dateKey(dayStart);
+
+  const days: MovementDay[] = Array.from({ length: 7 }, (_, index) => {
+    const day = addDays(weekStart, index);
+    const key = dateKey(day);
+    const minutes = weekEntries
+      .filter((entry) => dateKey(entry.loggedAt) === key)
+      .reduce((sum, entry) => sum + entry.durationMin, 0);
+    return {
+      key,
+      weekday: weekdayFmt.format(day),
+      minutes,
+      isToday: key === todayKey,
+      isFuture: day.getTime() > dayStart.getTime(),
+    };
+  });
+
+  const todayEntries = weekEntries.filter((entry) => dateKey(entry.loggedAt) === todayKey);
+
+  return {
+    today: { ...sumMovement(todayEntries), entries: todayEntries },
+    week: {
+      totalMinutes: sumMovement(weekEntries).minutes,
+      movedDays: days.filter((day) => day.minutes > 0).length,
+      days,
+    },
+    recent,
+  };
+}
+
+export async function getMovementEntry(
+  userId: number,
+  entryId: number
+): Promise<MovementLogEntry | null> {
+  const [entry] = await db
+    .select()
+    .from(movementLogEntries)
+    .where(and(eq(movementLogEntries.id, entryId), eq(movementLogEntries.userId, userId)))
+    .limit(1);
+  return entry ?? null;
+}
+
+export async function addMovementEntry(entry: {
+  userId: number;
+  activity: MovementType;
+  durationMin: number;
+  intensity: MovementIntensity;
+  calories: number;
+  loggedAt?: Date;
+}) {
+  const [created] = await db
+    .insert(movementLogEntries)
+    .values({ ...entry, loggedAt: entry.loggedAt ?? new Date() })
+    .returning();
+  return created;
+}
+
+export async function updateMovementEntry(
+  userId: number,
+  entryId: number,
+  patch: Partial<{
+    activity: MovementType;
+    durationMin: number;
+    intensity: MovementIntensity;
+    calories: number;
+  }>
+) {
+  const [updated] = await db
+    .update(movementLogEntries)
+    .set(patch)
+    .where(and(eq(movementLogEntries.id, entryId), eq(movementLogEntries.userId, userId)))
+    .returning();
+  return updated ?? null;
+}
+
+export async function deleteMovementEntry(userId: number, entryId: number) {
+  const [deleted] = await db
+    .delete(movementLogEntries)
+    .where(and(eq(movementLogEntries.id, entryId), eq(movementLogEntries.userId, userId)))
+    .returning();
+  return deleted ?? null;
 }
 

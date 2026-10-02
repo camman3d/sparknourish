@@ -17,6 +17,12 @@ const editableFields = [
   "proteinGoalG",
   "carbsGoalG",
   "fatGoalG",
+  "fitnessGoal",
+  "waterGoalOz",
+  "weeklyMoveGoalMin",
+  "addExerciseToBudget",
+  "remindersEnabled",
+  "units",
   "openRouterApiKey",
 ] as const satisfies readonly (keyof NewUser)[];
 

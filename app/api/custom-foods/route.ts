@@ -21,6 +21,10 @@ export async function POST(request: Request) {
     protein?: number;
     carbs?: number;
     fat?: number;
+    fiber?: number;
+    sugar?: number;
+    sodium?: number;
+    cholesterol?: number;
   };
 
   const name = body.name?.trim();
@@ -44,6 +48,10 @@ export async function POST(request: Request) {
     proteinG: Math.max(0, Math.round(Number(body.protein || 0) * 10) / 10),
     carbsG: Math.max(0, Math.round(Number(body.carbs || 0) * 10) / 10),
     fatG: Math.max(0, Math.round(Number(body.fat || 0) * 10) / 10),
+    fiberG: Math.max(0, Math.round(Number(body.fiber || 0) * 10) / 10),
+    sugarG: Math.max(0, Math.round(Number(body.sugar || 0) * 10) / 10),
+    sodiumMg: Math.max(0, Math.round(Number(body.sodium || 0))),
+    cholesterolMg: Math.max(0, Math.round(Number(body.cholesterol || 0))),
   });
 
   return NextResponse.json(created, { status: 201 });

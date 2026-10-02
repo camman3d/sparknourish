@@ -2,18 +2,28 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChartColumn, Home, PlusCircle, UserRound, type LucideIcon } from "lucide-react";
+import { Activity, ChartColumn, Home, PlusCircle, UserRound, type LucideIcon } from "lucide-react";
 
 const navItems: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/", label: "Home", Icon: Home },
   { href: "/add-food", label: "Log", Icon: PlusCircle },
+  { href: "/move", label: "Move", Icon: Activity },
   { href: "/history", label: "Progress", Icon: ChartColumn },
   { href: "/profile", label: "Profile", Icon: UserRound },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
-  if (pathname === "/login" || pathname === "/signup") return null;
+  if (
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/onboarding" ||
+    pathname.startsWith("/food/") ||
+    // The log / timer / completion flow is a full-screen task without the nav.
+    pathname.startsWith("/move/")
+  ) {
+    return null;
+  }
 
   return (
     <nav className="sticky bottom-0 z-20 border-t border-sand-200 bg-sand-50/95 backdrop-blur">

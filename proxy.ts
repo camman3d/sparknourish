@@ -11,11 +11,14 @@ export function proxy(request: NextRequest) {
   const loggedIn = verifyToken(request.cookies.get(SESSION_COOKIE)?.value) !== null;
   const isAuthPage = authPages.includes(pathname);
 
+  // Only gate unauthenticated access here. Deciding whether a valid-looking
+  // token maps to a real user requires the database, which the proxy doesn't
+  // have. Redirecting "logged in" users away from /login here would loop
+  // forever if the token outlives its user row (e.g. the account was deleted),
+  // because the server pages redirect the other way. The /login and /signup
+  // pages do that DB-backed check themselves via getSessionUser().
   if (!loggedIn && !isAuthPage) {
     return NextResponse.redirect(new URL("/login", request.url));
-  }
-  if (loggedIn && isAuthPage) {
-    return NextResponse.redirect(new URL("/", request.url));
   }
   return NextResponse.next();
 }

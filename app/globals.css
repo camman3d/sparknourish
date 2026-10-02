@@ -6,103 +6,115 @@
  * dark variant).
  */
 @theme {
-  --color-forest-50: #f0f7f3;
-  --color-forest-100: #e0ebe5;
-  --color-forest-200: #c0d2c8;
-  --color-forest-300: #a0baad;
-  --color-forest-400: #81a293;
-  --color-forest-500: #628b79;
-  --color-forest-600: #427561;
-  --color-forest-700: #1f5f4a;
-  --color-forest-800: #17473b;
-  --color-forest-900: #12302a;
-  --color-forest-950: #0a1c17;
+    --color-forest-50: #f0f7f3;
+    --color-forest-100: #e0ebe5;
+    --color-forest-200: #c0d2c8;
+    --color-forest-300: #a0baad;
+    --color-forest-400: #81a293;
+    --color-forest-500: #628b79;
+    --color-forest-600: #427561;
+    --color-forest-700: #1f5f4a;
+    --color-forest-800: #17473b;
+    --color-forest-900: #12302a;
+    --color-forest-950: #0a1c17;
 
-  --color-coral-50: #fdf3ee;
-  --color-coral-100: #f9e5db;
-  --color-coral-200: #f0c9b7;
-  --color-coral-300: #e7ad94;
-  --color-coral-400: #dc9072;
-  --color-coral-500: #d17251;
-  --color-coral-600: #c4532f;
-  --color-coral-700: #9a4024;
-  --color-coral-800: #722d1a;
-  --color-coral-900: #4c1c0f;
-  --color-coral-950: #3a140a;
+    --color-coral-50: #fdf3ee;
+    --color-coral-100: #f9e5db;
+    --color-coral-200: #f0c9b7;
+    --color-coral-300: #e7ad94;
+    --color-coral-400: #dc9072;
+    --color-coral-500: #d17251;
+    --color-coral-600: #c4532f;
+    --color-coral-700: #9a4024;
+    --color-coral-800: #722d1a;
+    --color-coral-900: #4c1c0f;
+    --color-coral-950: #3a140a;
 
-  --color-amber-50: #fef8e8;
-  --color-amber-100: #f8edd2;
-  --color-amber-200: #ecd5a5;
-  --color-amber-300: #e2bd76;
-  --color-amber-400: #d9a441;
-  --color-amber-500: #b78935;
-  --color-amber-600: #976e29;
-  --color-amber-700: #77551d;
-  --color-amber-800: #593e12;
-  --color-amber-900: #3c2708;
-  --color-amber-950: #2e1d04;
+    --color-amber-50: #fef8e8;
+    --color-amber-100: #f8edd2;
+    --color-amber-200: #ecd5a5;
+    --color-amber-300: #e2bd76;
+    --color-amber-400: #d9a441;
+    --color-amber-500: #b78935;
+    --color-amber-600: #976e29;
+    --color-amber-700: #77551d;
+    --color-amber-800: #593e12;
+    --color-amber-900: #3c2708;
+    --color-amber-950: #2e1d04;
 
-  --color-lagoon-50: #edf7fa;
-  --color-lagoon-100: #dcedf2;
-  --color-lagoon-200: #bad8e2;
-  --color-lagoon-300: #99c4d3;
-  --color-lagoon-400: #78afc4;
-  --color-lagoon-500: #559bb6;
-  --color-lagoon-600: #2e86a8;
-  --color-lagoon-700: #17566f;
-  --color-lagoon-800: #113f53;
-  --color-lagoon-900: #0a2a38;
-  --color-lagoon-950: #07202b;
+    --color-lagoon-50: #edf7fa;
+    --color-lagoon-100: #dcedf2;
+    --color-lagoon-200: #bad8e2;
+    --color-lagoon-300: #99c4d3;
+    --color-lagoon-400: #78afc4;
+    --color-lagoon-500: #559bb6;
+    --color-lagoon-600: #2e86a8;
+    --color-lagoon-700: #17566f;
+    --color-lagoon-800: #113f53;
+    --color-lagoon-900: #0a2a38;
+    --color-lagoon-950: #07202b;
 
-  --color-sand-50: #faf9f5;
-  --color-sand-100: #f4f2ea;
-  --color-sand-200: #e6e4d9;
-  --color-sand-300: #bcc0b5;
-  --color-sand-400: #949c94;
-  --color-sand-500: #6f7a75;
-  --color-sand-600: #586761;
-  --color-sand-700: #42554f;
-  --color-sand-800: #2f3f3a;
-  --color-sand-900: #1d2a26;
-  --color-sand-950: #14201d;
+    --color-plum-50: #F8F2FA;
+    --color-plum-100: #ECE2F0;
+    --color-plum-200: #D5C2DC;
+    --color-plum-300: #BEA3C9;
+    --color-plum-400: #A785B5;
+    --color-plum-500: #9067A2;
+    --color-plum-600: #7A4A8F;
+    --color-plum-700: #603972;
+    --color-plum-800: #472855;
+    --color-plum-900: #30183B;
+    --color-plum-950: #25112E;
 
-  --radius-card: 28px;
-  --radius-tile: 20px;
-  --shadow-card: 0 1px 2px rgb(18 48 42 / 0.06), 0 10px 28px rgb(18 48 42 / 0.06);
+    --color-sand-50: #faf9f5;
+    --color-sand-100: #f4f2ea;
+    --color-sand-200: #e6e4d9;
+    --color-sand-300: #bcc0b5;
+    --color-sand-400: #949c94;
+    --color-sand-500: #6f7a75;
+    --color-sand-600: #586761;
+    --color-sand-700: #42554f;
+    --color-sand-800: #2f3f3a;
+    --color-sand-900: #1d2a26;
+    --color-sand-950: #14201d;
 
-  /* Font families are injected as CSS variables by next/font in the root layout. */
-  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
-  --font-display: var(--font-bricolage), system-ui, sans-serif;
+    --radius-card: 28px;
+    --radius-tile: 20px;
+    --shadow-card: 0 1px 2px rgb(18 48 42 / 0.06), 0 10px 28px rgb(18 48 42 / 0.06);
+
+    /* Font families are injected as CSS variables by next/font in the root layout. */
+    --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+    --font-display: var(--font-bricolage), system-ui, sans-serif;
 }
 
 @layer base {
-  html {
-    color-scheme: light;
-  }
+    html {
+        color-scheme: light;
+    }
 
-  body {
-    background-color: var(--color-sand-100);
-    color: var(--color-forest-900);
-    font-family: var(--font-sans);
-  }
+    body {
+        background-color: var(--color-sand-100);
+        color: var(--color-forest-900);
+        font-family: var(--font-sans);
+    }
 
-  h1,
-  h2,
-  h3 {
-    font-family: var(--font-display);
-  }
+    h1,
+    h2,
+    h3 {
+        font-family: var(--font-display);
+    }
 }
 
 @layer components {
-  .card {
-    background-color: #fff;
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-card);
-  }
+    .card {
+        background-color: #fff;
+        border-radius: var(--radius-card);
+        box-shadow: var(--shadow-card);
+    }
 
-  .tile {
-    background-color: #fff;
-    border-radius: var(--radius-tile);
-    box-shadow: var(--shadow-card);
-  }
+    .tile {
+        background-color: #fff;
+        border-radius: var(--radius-tile);
+        box-shadow: var(--shadow-card);
+    }
 }

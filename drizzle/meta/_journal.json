@@ -15,6 +15,20 @@
       "when": 1790948497683,
       "tag": "0001_sleepy_loners",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790971931398,
+      "tag": "0002_massive_solo",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790973379245,
+      "tag": "0003_fixed_maestro",
+      "breakpoints": true
     }
   ]
 }

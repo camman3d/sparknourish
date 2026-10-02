@@ -18,6 +18,10 @@ const NUTRIENT_ENERGY_ATWATER_SPEC = 2048;
 const NUTRIENT_PROTEIN = 1003;
 const NUTRIENT_FAT = 1004;
 const NUTRIENT_CARBS = 1005;
+const NUTRIENT_FIBER = 1079;
+const NUTRIENT_SUGAR = 2000;
+const NUTRIENT_SODIUM = 1093;
+const NUTRIENT_CHOLESTEROL = 1253;
 
 type FoodMeta = {
   fdcId: number;
@@ -32,6 +36,10 @@ type NutrientAccumulator = {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  fiberG: number;
+  sugarG: number;
+  sodiumMg: number;
+  cholesterolMg: number;
 };
 
 function openZip(zipPath: string): Promise<yauzl.ZipFile> {
@@ -241,7 +249,7 @@ async function main() {
 
     let acc = nutrientsMap.get(fdcId);
     if (!acc) {
-      acc = { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 };
+      acc = { calories: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0, sugarG: 0, sodiumMg: 0, cholesterolMg: 0 };
       nutrientsMap.set(fdcId, acc);
     }
 
@@ -253,6 +261,14 @@ async function main() {
       acc.carbsG = Math.round(amount * 10) / 10;
     } else if (nutrientId === NUTRIENT_FAT) {
       acc.fatG = Math.round(amount * 10) / 10;
+    } else if (nutrientId === NUTRIENT_FIBER) {
+      acc.fiberG = Math.round(amount * 10) / 10;
+    } else if (nutrientId === NUTRIENT_SUGAR) {
+      acc.sugarG = Math.round(amount * 10) / 10;
+    } else if (nutrientId === NUTRIENT_SODIUM) {
+      acc.sodiumMg = Math.round(amount);
+    } else if (nutrientId === NUTRIENT_CHOLESTEROL) {
+      acc.cholesterolMg = Math.round(amount);
     }
   }
   zip3.close();
@@ -263,7 +279,17 @@ async function main() {
   const foodsToInsert: NewUsdaFood[] = [];
 
   for (const [fdcId, meta] of targetFoods.entries()) {
-    const nut = nutrientsMap.get(fdcId) || { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 };
+    const nut =
+      nutrientsMap.get(fdcId) || {
+        calories: 0,
+        proteinG: 0,
+        carbsG: 0,
+        fatG: 0,
+        fiberG: 0,
+        sugarG: 0,
+        sodiumMg: 0,
+        cholesterolMg: 0,
+      };
     foodsToInsert.push({
       fdcId,
       name: meta.name,
@@ -274,6 +300,10 @@ async function main() {
       proteinG: nut.proteinG,
       carbsG: nut.carbsG,
       fatG: nut.fatG,
+      fiberG: nut.fiberG,
+      sugarG: nut.sugarG,
+      sodiumMg: nut.sodiumMg,
+      cholesterolMg: nut.cholesterolMg,
     });
   }
 
@@ -296,6 +326,10 @@ async function main() {
           proteinG: sql`excluded.protein_g`,
           carbsG: sql`excluded.carbs_g`,
           fatG: sql`excluded.fat_g`,
+          fiberG: sql`excluded.fiber_g`,
+          sugarG: sql`excluded.sugar_g`,
+          sodiumMg: sql`excluded.sodium_mg`,
+          cholesterolMg: sql`excluded.cholesterol_mg`,
         },
       });
     inserted += chunk.length;

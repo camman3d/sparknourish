@@ -1,4 +1,4 @@
-import { index, integer, pgEnum, pgTable, real, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgEnum, pgTable, real, serial, text, timestamp } from "drizzle-orm/pg-core";
 
 export const genderEnum = pgEnum("gender", ["female", "male", "other"]);
 
@@ -12,21 +12,47 @@ export const activityLevelEnum = pgEnum("activity_level", [
 
 export const mealTypeEnum = pgEnum("meal_type", ["breakfast", "lunch", "dinner", "snacks"]);
 
+export const fitnessGoalEnum = pgEnum("fitness_goal", ["lose", "maintain", "build"]);
+
+export const movementTypeEnum = pgEnum("movement_type", [
+  "walk",
+  "run",
+  "bike",
+  "strength",
+  "yoga",
+  "other",
+]);
+
+export const movementIntensityEnum = pgEnum("movement_intensity", ["easy", "moderate", "hard"]);
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  age: integer("age").notNull(),
-  gender: genderEnum("gender").notNull(),
-  weightLbs: real("weight_lbs").notNull(),
-  heightFeet: integer("height_feet").notNull(),
-  heightInches: integer("height_inches").notNull(),
-  activityLevel: activityLevelEnum("activity_level").notNull(),
-  dailyCalorieGoal: integer("daily_calorie_goal").notNull(),
-  proteinGoalG: integer("protein_goal_g").notNull(),
-  carbsGoalG: integer("carbs_goal_g").notNull(),
-  fatGoalG: integer("fat_goal_g").notNull(),
+  // Health profile is collected during the guided onboarding that runs after
+  // signup, so these columns carry defaults until the user completes it.
+  age: integer("age").notNull().default(0),
+  gender: genderEnum("gender").notNull().default("other"),
+  weightLbs: real("weight_lbs").notNull().default(0),
+  heightFeet: integer("height_feet").notNull().default(0),
+  heightInches: integer("height_inches").notNull().default(0),
+  activityLevel: activityLevelEnum("activity_level").notNull().default("sedentary"),
+  dailyCalorieGoal: integer("daily_calorie_goal").notNull().default(2000),
+  proteinGoalG: integer("protein_goal_g").notNull().default(150),
+  carbsGoalG: integer("carbs_goal_g").notNull().default(200),
+  fatGoalG: integer("fat_goal_g").notNull().default(67),
+  fitnessGoal: fitnessGoalEnum("fitness_goal").notNull().default("maintain"),
+  waterGoalOz: integer("water_goal_oz").notNull().default(80),
+  // Weekly movement target in minutes. 0 means "no goal, just track food".
+  weeklyMoveGoalMin: integer("weekly_move_goal_min").notNull().default(150),
+  // When true, calories burned through movement are added back to the daily budget.
+  addExerciseToBudget: boolean("add_exercise_to_budget").notNull().default(true),
+  remindersEnabled: boolean("reminders_enabled").notNull().default(true),
+  units: text("units").notNull().default("imperial"),
+  // Defaults to true so existing accounts are never forced back through
+  // onboarding; the signup route explicitly inserts `false`.
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(true),
   openRouterApiKey: text("open_router_api_key").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -54,6 +80,25 @@ export const foodLogEntries = pgTable(
   ]
 );
 
+export const movementLogEntries = pgTable(
+  "movement_log_entries",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    activity: movementTypeEnum("activity").notNull(),
+    durationMin: integer("duration_min").notNull(),
+    intensity: movementIntensityEnum("intensity").notNull().default("moderate"),
+    calories: integer("calories").notNull(),
+    loggedAt: timestamp("logged_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("movement_log_entries_user_date_idx").on(table.userId, table.loggedAt),
+  ]
+);
+
 export const customFoods = pgTable(
   "custom_foods",
   {
@@ -67,6 +112,10 @@ export const customFoods = pgTable(
     proteinG: real("protein_g").notNull().default(0),
     carbsG: real("carbs_g").notNull().default(0),
     fatG: real("fat_g").notNull().default(0),
+    fiberG: real("fiber_g").notNull().default(0),
+    sugarG: real("sugar_g").notNull().default(0),
+    sodiumMg: real("sodium_mg").notNull().default(0),
+    cholesterolMg: real("cholesterol_mg").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -88,6 +137,10 @@ export const usdaFoods = pgTable(
     proteinG: real("protein_g").notNull().default(0),
     carbsG: real("carbs_g").notNull().default(0),
     fatG: real("fat_g").notNull().default(0),
+    fiberG: real("fiber_g").notNull().default(0),
+    sugarG: real("sugar_g").notNull().default(0),
+    sodiumMg: real("sodium_mg").notNull().default(0),
+    cholesterolMg: real("cholesterol_mg").notNull().default(0),
   },
   (table) => [
     index("usda_foods_name_idx").on(table.name),
@@ -99,6 +152,8 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type FoodLogEntry = typeof foodLogEntries.$inferSelect;
 export type NewFoodLogEntry = typeof foodLogEntries.$inferInsert;
+export type MovementLogEntry = typeof movementLogEntries.$inferSelect;
+export type NewMovementLogEntry = typeof movementLogEntries.$inferInsert;
 export type CustomFood = typeof customFoods.$inferSelect;
 export type NewCustomFood = typeof customFoods.$inferInsert;
 export type UsdaFood = typeof usdaFoods.$inferSelect;

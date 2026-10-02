@@ -93,9 +93,11 @@ function ActionTile({
 
 export function FoodSearch({
   initialMeal,
+  date,
   recent,
 }: {
   initialMeal: MealId;
+  date: string;
   recent: RecentFoodProp[];
 }) {
   const router = useRouter();
@@ -121,6 +123,10 @@ export function FoodSearch({
   const [customProtein, setCustomProtein] = useState("");
   const [customCarbs, setCustomCarbs] = useState("");
   const [customFat, setCustomFat] = useState("");
+  const [customFiber, setCustomFiber] = useState("");
+  const [customSugar, setCustomSugar] = useState("");
+  const [customSodium, setCustomSodium] = useState("");
+  const [customCholesterol, setCustomCholesterol] = useState("");
   const [savingCustom, setSavingCustom] = useState(false);
   const [customError, setCustomError] = useState<string | null>(null);
   const [estimatingCustom, setEstimatingCustom] = useState(false);
@@ -252,6 +258,7 @@ export function FoodSearch({
           protein: item.proteinG,
           carbs: item.carbsG,
           fat: item.fatG,
+          date,
         }),
       });
       if (!res.ok) failed = true;
@@ -264,7 +271,7 @@ export function FoodSearch({
     }
 
     startTransition(() => {
-      router.push(`/meals/${meal}`);
+      router.push(`/?date=${date}`);
       router.refresh();
     });
   }
@@ -284,6 +291,10 @@ export function FoodSearch({
         protein: Number(customProtein || 0),
         carbs: Number(customCarbs || 0),
         fat: Number(customFat || 0),
+        fiber: Number(customFiber || 0),
+        sugar: Number(customSugar || 0),
+        sodium: Number(customSodium || 0),
+        cholesterol: Number(customCholesterol || 0),
       }),
     });
 
@@ -314,6 +325,10 @@ export function FoodSearch({
     setCustomProtein("");
     setCustomCarbs("");
     setCustomFat("");
+    setCustomFiber("");
+    setCustomSugar("");
+    setCustomSodium("");
+    setCustomCholesterol("");
 
     // Offer the portion adjuster for the newly created food.
     setPortionFood(newFood);
@@ -400,6 +415,7 @@ export function FoodSearch({
           protein: item.proteinG,
           carbs: item.carbsG,
           fat: item.fatG,
+          date,
         }),
       });
       if (!res.ok) failed = true;
@@ -412,7 +428,7 @@ export function FoodSearch({
     }
 
     startTransition(() => {
-      router.push(`/meals/${meal}`);
+      router.push(`/?date=${date}`);
       router.refresh();
     });
   }
@@ -508,34 +524,49 @@ export function FoodSearch({
             <div className="card divide-y divide-sand-100 overflow-hidden">
               {displayFoods.map((food) => {
                 const added = isStaged(food.id);
+                const openDetail = food.source !== "recent";
+                const summary = (
+                  <>
+                    <span className="flex items-center gap-1.5">
+                      <span className="truncate font-semibold text-forest-900">{food.name}</span>
+                      {food.source === "custom" && (
+                        <span className="shrink-0 rounded-md bg-forest-50 px-1.5 py-0.5 text-[10px] font-semibold text-forest-700">
+                          Custom
+                        </span>
+                      )}
+                      {food.brandOwner && (
+                        <span className="shrink-0 truncate text-[10px] text-sand-400">
+                          · {food.brandOwner}
+                        </span>
+                      )}
+                    </span>
+                    <span className="mt-0.5 block truncate text-sm text-sand-500">
+                      {food.servingSize} · {food.calories} kcal · {Math.round(food.proteinG)}P{" "}
+                      {Math.round(food.carbsG)}C {Math.round(food.fatG)}F
+                    </span>
+                  </>
+                );
                 return (
                   <div key={food.id} className="flex items-center gap-3 px-4 py-3.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPortionFood(food);
-                        setServingsMultiplier(1);
-                      }}
-                      className="min-w-0 flex-1 text-left"
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <span className="truncate font-semibold text-forest-900">{food.name}</span>
-                        {food.source === "custom" && (
-                          <span className="shrink-0 rounded-md bg-forest-50 px-1.5 py-0.5 text-[10px] font-semibold text-forest-700">
-                            Custom
-                          </span>
-                        )}
-                        {food.brandOwner && (
-                          <span className="shrink-0 truncate text-[10px] text-sand-400">
-                            · {food.brandOwner}
-                          </span>
-                        )}
-                      </span>
-                      <span className="mt-0.5 block truncate text-sm text-sand-500">
-                        {food.servingSize} · {food.calories} kcal · {Math.round(food.proteinG)}P{" "}
-                        {Math.round(food.carbsG)}C {Math.round(food.fatG)}F
-                      </span>
-                    </button>
+                    {openDetail ? (
+                      <Link
+                        href={`/food/${food.id}?meal=${meal}&date=${date}`}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        {summary}
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPortionFood(food);
+                          setServingsMultiplier(1);
+                        }}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        {summary}
+                      </button>
+                    )}
 
                     <button
                       type="button"
@@ -949,6 +980,62 @@ export function FoodSearch({
                     placeholder="7"
                     value={customFat}
                     onChange={(e) => setCustomFat(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs font-semibold uppercase tracking-wide text-sand-400">
+                More nutrients (optional)
+              </p>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={labelClass}>Fiber (g)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min={0}
+                    placeholder="0"
+                    value={customFiber}
+                    onChange={(e) => setCustomFiber(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Sugar (g)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min={0}
+                    placeholder="0"
+                    value={customSugar}
+                    onChange={(e) => setCustomSugar(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={labelClass}>Sodium (mg)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="0"
+                    value={customSodium}
+                    onChange={(e) => setCustomSodium(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Cholesterol (mg)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="0"
+                    value={customCholesterol}
+                    onChange={(e) => setCustomCholesterol(e.target.value)}
                     className={inputClass}
                   />
                 </div>
