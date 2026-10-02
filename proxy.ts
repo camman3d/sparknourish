@@ -26,7 +26,7 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // Skip API routes, Next internals, and static assets. Public files such as
-    // /SparkNourishIcon.png must not be auth-redirected: the image optimizer
+    // /SparkNourishIconTile.png must not be auth-redirected: the image optimizer
     // fetches them server-side and would otherwise receive the /login HTML
     // (surfacing as "The requested resource isn't a valid image ... received null").
     "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|webmanifest)$).*)",

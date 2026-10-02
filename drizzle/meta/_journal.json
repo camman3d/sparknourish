@@ -43,6 +43,13 @@
       "when": 1790980290794,
       "tag": "0005_boring_titania",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790982989243,
+      "tag": "0006_easy_santa_claus",
+      "breakpoints": true
     }
   ]
 }

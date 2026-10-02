@@ -145,6 +145,40 @@ export const customFoods = pgTable(
   ]
 );
 
+// Reusable meal templates ("My meals"). A saved meal is a named collection of
+// item rows; staging one drops every item into the Add-food cart in one tap.
+export const savedMeals = pgTable(
+  "saved_meals",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("saved_meals_user_idx").on(table.userId)]
+);
+
+export const savedMealItems = pgTable(
+  "saved_meal_items",
+  {
+    id: serial("id").primaryKey(),
+    savedMealId: integer("saved_meal_id")
+      .notNull()
+      .references(() => savedMeals.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    quantity: text("quantity").notNull(),
+    calories: integer("calories").notNull().default(0),
+    proteinG: real("protein_g").notNull().default(0),
+    carbsG: real("carbs_g").notNull().default(0),
+    fatG: real("fat_g").notNull().default(0),
+    position: integer("position").notNull().default(0),
+  },
+  (table) => [index("saved_meal_items_meal_idx").on(table.savedMealId)]
+);
+
 export const usdaFoods = pgTable(
   "usda_foods",
   {
@@ -178,6 +212,10 @@ export type WaterLogEntry = typeof waterLogEntries.$inferSelect;
 export type NewWaterLogEntry = typeof waterLogEntries.$inferInsert;
 export type CustomFood = typeof customFoods.$inferSelect;
 export type NewCustomFood = typeof customFoods.$inferInsert;
+export type SavedMeal = typeof savedMeals.$inferSelect;
+export type NewSavedMeal = typeof savedMeals.$inferInsert;
+export type SavedMealItem = typeof savedMealItems.$inferSelect;
+export type NewSavedMealItem = typeof savedMealItems.$inferInsert;
 export type UsdaFood = typeof usdaFoods.$inferSelect;
 export type NewUsdaFood = typeof usdaFoods.$inferInsert;
 

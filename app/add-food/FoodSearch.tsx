@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  BookmarkPlus,
   Camera,
   Check,
   Loader2,
@@ -13,6 +14,7 @@ import {
   Search,
   Soup,
   Sparkles,
+  Trash2,
   X,
   Zap,
   type LucideIcon,
@@ -61,6 +63,25 @@ type StagedItem = {
   fatG: number;
 };
 
+/** A saved-meal item as returned by `/api/saved-meals`. */
+type SavedMealItem = {
+  id: number;
+  name: string;
+  quantity: string;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+};
+
+/** A reusable meal template ("My meals"). */
+type SavedMeal = {
+  id: number;
+  name: string;
+  items: SavedMealItem[];
+  totals: { calories: number; protein: number; carbs: number; fat: number };
+};
+
 const inputClass =
   "w-full rounded-xl border border-sand-200 bg-white px-3 py-2 text-sm text-forest-900 placeholder:text-sand-400 focus:border-forest-500 focus:outline-none";
 const labelClass = "mb-1 block text-xs font-medium text-sand-600";
@@ -101,7 +122,7 @@ export function FoodSearch({
   recent: RecentFoodProp[];
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"search" | "ai">("search");
+  const [mode, setMode] = useState<"search" | "ai" | "meals">("search");
   const [query, setQuery] = useState("");
   const [meal, setMeal] = useState<MealId>(initialMeal);
   const [results, setResults] = useState<UnifiedFood[]>([]);
@@ -110,6 +131,17 @@ export function FoodSearch({
   const [staged, setStaged] = useState<StagedItem[]>([]);
   const [committing, setCommitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Saved meals ("My meals") state
+  const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
+  const [savedLoading, setSavedLoading] = useState(false);
+  const [savedLoaded, setSavedLoaded] = useState(false);
+  const [savedError, setSavedError] = useState<string | null>(null);
+  const [deletingSavedId, setDeletingSavedId] = useState<number | null>(null);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveMealName, setSaveMealName] = useState("");
+  const [savingMeal, setSavingMeal] = useState(false);
+  const [saveMealError, setSaveMealError] = useState<string | null>(null);
 
   // Portion adjuster state for clicked food
   const [portionFood, setPortionFood] = useState<UnifiedFood | null>(null);
@@ -238,6 +270,139 @@ export function FoodSearch({
 
   function unstageFood(foodId: string) {
     setStaged((prev) => prev.filter((item) => item.foodId !== foodId));
+  }
+
+  // --- Saved meals -----------------------------------------------------------
+
+  async function loadSavedMeals() {
+    setSavedLoading(true);
+    setSavedError(null);
+    try {
+      const res = await fetch("/api/saved-meals");
+      if (!res.ok) throw new Error("Failed to load saved meals");
+      const data = (await res.json()) as SavedMeal[];
+      setSavedMeals(data);
+      setSavedLoaded(true);
+    } catch {
+      setSavedError("Could not load your saved meals.");
+    } finally {
+      setSavedLoading(false);
+    }
+  }
+
+  function openSavedMeals() {
+    setMode("meals");
+    if (!savedLoaded || savedError) void loadSavedMeals();
+  }
+
+  const savedItemId = (mealId: number, itemId: number) => `saved-${mealId}-${itemId}`;
+
+  function isSavedMealStaged(meal: SavedMeal) {
+    return (
+      meal.items.length > 0 &&
+      meal.items.every((item) =>
+        staged.some((stagedItem) => stagedItem.foodId === savedItemId(meal.id, item.id))
+      )
+    );
+  }
+
+  function stageSavedMeal(meal: SavedMeal) {
+    setStaged((prev) => {
+      const existing = new Set(prev.map((item) => item.foodId));
+      const next = [...prev];
+      for (const item of meal.items) {
+        const foodId = savedItemId(meal.id, item.id);
+        if (existing.has(foodId)) continue;
+        next.push({
+          foodId,
+          name: item.name,
+          quantity: item.quantity,
+          calories: item.calories,
+          proteinG: item.proteinG,
+          carbsG: item.carbsG,
+          fatG: item.fatG,
+        });
+        existing.add(foodId);
+      }
+      return next;
+    });
+  }
+
+  function unstageSavedMeal(meal: SavedMeal) {
+    setStaged((prev) =>
+      prev.filter(
+        (stagedItem) =>
+          !meal.items.some((item) => stagedItem.foodId === savedItemId(meal.id, item.id))
+      )
+    );
+  }
+
+  function toggleSavedMeal(meal: SavedMeal) {
+    if (isSavedMealStaged(meal)) unstageSavedMeal(meal);
+    else stageSavedMeal(meal);
+  }
+
+  async function handleDeleteSavedMeal(meal: SavedMeal) {
+    if (!confirm(`Delete “${meal.name}”?`)) return;
+
+    setDeletingSavedId(meal.id);
+    setSavedError(null);
+    const res = await fetch(`/api/saved-meals/${meal.id}`, { method: "DELETE" });
+    setDeletingSavedId(null);
+
+    if (!res.ok) {
+      setSavedError("Failed to delete saved meal. Please try again.");
+      return;
+    }
+
+    setSavedMeals((prev) => prev.filter((m) => m.id !== meal.id));
+    setStaged((prev) =>
+      prev.filter((item) => !meal.items.some((i) => item.foodId === savedItemId(meal.id, i.id)))
+    );
+  }
+
+  function openSaveModal() {
+    setSaveMealName("");
+    setSaveMealError(null);
+    setShowSaveModal(true);
+  }
+
+  async function handleSaveMeal(e: React.FormEvent) {
+    e.preventDefault();
+    const name = saveMealName.trim();
+    if (!name || !staged.length || savingMeal) return;
+
+    setSavingMeal(true);
+    setSaveMealError(null);
+
+    const res = await fetch("/api/saved-meals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        items: staged.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          calories: item.calories,
+          protein: item.proteinG,
+          carbs: item.carbsG,
+          fat: item.fatG,
+        })),
+      }),
+    });
+
+    setSavingMeal(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setSaveMealError(data.error || "Failed to save meal. Please try again.");
+      return;
+    }
+
+    const created: SavedMeal = await res.json();
+    setSavedMeals((prev) => [created, ...prev]);
+    setSavedLoaded(true);
+    setShowSaveModal(false);
+    setSaveMealName("");
   }
 
   async function handleCommit() {
@@ -499,7 +664,7 @@ export function FoodSearch({
               title="Photo meal logging is coming soon"
             />
             <ActionTile icon={Zap} label="Quick add" onClick={() => setMode("ai")} />
-            <ActionTile icon={Soup} label="My meals" title="Saved meals are coming soon" />
+            <ActionTile icon={Soup} label="My meals" onClick={openSavedMeals} />
           </div>
 
           {error && (
@@ -614,7 +779,7 @@ export function FoodSearch({
             </button>
           </section>
         </div>
-      ) : (
+      ) : mode === "ai" ? (
         /* AI Quick add */
         <div className="flex flex-col gap-4">
           <button
@@ -737,6 +902,95 @@ export function FoodSearch({
             </div>
           )}
         </div>
+      ) : (
+        /* Saved meals ("My meals") */
+        <div className="flex flex-col gap-4">
+          <button
+            type="button"
+            onClick={() => setMode("search")}
+            className="flex w-fit items-center gap-1 text-sm font-semibold text-forest-700"
+          >
+            <ArrowLeft className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+            Back to search
+          </button>
+
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-display text-xl font-bold text-forest-900">My meals</h2>
+            {savedMeals.length > 0 && (
+              <span className="text-xs text-sand-500">{savedMeals.length} saved</span>
+            )}
+          </div>
+
+          {savedError && <p className="text-sm font-medium text-coral-700">{savedError}</p>}
+
+          {savedLoading ? (
+            <div className="flex items-center gap-2 px-1 py-6 text-sm text-sand-500">
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
+              Loading your meals…
+            </div>
+          ) : savedMeals.length === 0 ? (
+            <div className="card px-4 py-8 text-center text-sm text-sand-500">
+              <Soup className="mx-auto mb-2 h-6 w-6 text-sand-300" strokeWidth={1.75} aria-hidden />
+              <p>No saved meals yet.</p>
+              <p className="mt-1 text-xs">
+                Add foods to your cart, then tap the bookmark to save the group for one-tap logging.
+              </p>
+            </div>
+          ) : (
+            <ul className="card divide-y divide-sand-100 overflow-hidden">
+              {savedMeals.map((meal) => {
+                const added = isSavedMealStaged(meal);
+                return (
+                  <li key={meal.id} className="flex items-center gap-3 px-4 py-3.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleSavedMeal(meal)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <span className="truncate font-semibold text-forest-900">{meal.name}</span>
+                      <span className="mt-0.5 block truncate text-sm text-sand-500">
+                        {meal.items.length} item{meal.items.length === 1 ? "" : "s"} ·{" "}
+                        {meal.totals.calories} kcal · {Math.round(meal.totals.protein)}P{" "}
+                        {Math.round(meal.totals.carbs)}C {Math.round(meal.totals.fat)}F
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteSavedMeal(meal)}
+                      disabled={deletingSavedId === meal.id}
+                      aria-label={`Delete ${meal.name}`}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sand-400 transition-colors hover:bg-coral-50 hover:text-coral-700 disabled:opacity-50"
+                    >
+                      {deletingSavedId === meal.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
+                      ) : (
+                        <Trash2 className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleSavedMeal(meal)}
+                      aria-label={added ? `Remove ${meal.name}` : `Add ${meal.name}`}
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
+                        added
+                          ? "bg-forest-700 text-white"
+                          : "bg-forest-100 text-forest-700 hover:bg-forest-200"
+                      }`}
+                    >
+                      {added ? (
+                        <Check className="h-5 w-5" strokeWidth={2.5} aria-hidden />
+                      ) : (
+                        <Plus className="h-5 w-5" strokeWidth={2.5} aria-hidden />
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       )}
 
       {/* Pending cart */}
@@ -752,6 +1006,15 @@ export function FoodSearch({
                 <span className="ml-1 text-xs font-medium text-forest-200">kcal</span>
               </p>
             </div>
+            <button
+              type="button"
+              onClick={openSaveModal}
+              aria-label="Save these items as a meal"
+              title="Save as meal"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-forest-800 text-forest-100 transition-colors hover:bg-forest-700"
+            >
+              <BookmarkPlus className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+            </button>
             <button
               type="button"
               onClick={handleCommit}
@@ -852,6 +1115,77 @@ export function FoodSearch({
                 Add to {mealName}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save as meal modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-xs sm:items-center">
+          <div className="w-full max-w-sm rounded-card bg-white p-5 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-display text-lg font-bold text-forest-900">Save as meal</h3>
+              <button
+                type="button"
+                onClick={() => setShowSaveModal(false)}
+                className="text-sand-400 hover:text-sand-600"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" strokeWidth={2} aria-hidden />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveMeal} className="flex flex-col gap-3">
+              <div>
+                <label className={labelClass}>Meal name *</label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  maxLength={80}
+                  placeholder="e.g. My usual breakfast"
+                  value={saveMealName}
+                  onChange={(e) => setSaveMealName(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="rounded-tile bg-sand-50 p-3 text-sm text-sand-600">
+                {staged.length} item{staged.length === 1 ? "" : "s"} ·{" "}
+                <span className="font-semibold text-forest-900">{cartCalories} kcal</span>
+              </div>
+
+              {saveMealError && (
+                <p className="text-xs font-semibold text-coral-700">{saveMealError}</p>
+              )}
+
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSaveModal(false)}
+                  className="w-1/3 rounded-xl border border-sand-200 py-2.5 text-xs font-semibold text-sand-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingMeal || !saveMealName.trim()}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-forest-700 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-forest-800 disabled:opacity-60"
+                >
+                  {savingMeal ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} aria-hidden />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      <BookmarkPlus className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+                      Save meal
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

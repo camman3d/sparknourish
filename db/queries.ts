@@ -1,15 +1,18 @@
-import { and, asc, desc, eq, gte, ilike, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, lt, or, sql } from "drizzle-orm";
 import { db } from "./index";
 import {
   customFoods,
   foodLogEntries,
   movementLogEntries,
+  savedMealItems,
+  savedMeals,
   usdaFoods,
   users,
   waterLogEntries,
   type FoodLogEntry,
   type MovementLogEntry,
   type NewUser,
+  type SavedMealItem,
   type User,
   type WaterLogEntry,
 } from "./schema";
@@ -641,6 +644,117 @@ export async function deleteLatestWaterEntry(userId: number, date: Date, timeZon
   const [deleted] = await db
     .delete(waterLogEntries)
     .where(and(eq(waterLogEntries.id, latest.id), eq(waterLogEntries.userId, userId)))
+    .returning();
+  return deleted ?? null;
+}
+
+// --- Saved meals / recipes ---------------------------------------------------
+
+export type SavedMealItemInput = {
+  name: string;
+  quantity: string;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+};
+
+export type SavedMealSummary = {
+  id: number;
+  name: string;
+  createdAt: Date;
+  items: SavedMealItem[];
+  totals: { calories: number; protein: number; carbs: number; fat: number };
+};
+
+function sumSavedItems(items: SavedMealItem[]) {
+  return items.reduce(
+    (totals, item) => ({
+      calories: totals.calories + item.calories,
+      protein: totals.protein + item.proteinG,
+      carbs: totals.carbs + item.carbsG,
+      fat: totals.fat + item.fatG,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+}
+
+/** Every saved meal for the user, newest first, with its items and totals. */
+export async function getSavedMeals(userId: number): Promise<SavedMealSummary[]> {
+  const meals = await db
+    .select()
+    .from(savedMeals)
+    .where(eq(savedMeals.userId, userId))
+    .orderBy(desc(savedMeals.updatedAt), desc(savedMeals.id));
+
+  if (!meals.length) return [];
+
+  const items = await db
+    .select()
+    .from(savedMealItems)
+    .where(inArray(savedMealItems.savedMealId, meals.map((meal) => meal.id)))
+    .orderBy(asc(savedMealItems.position), asc(savedMealItems.id));
+
+  const byMeal = new Map<number, SavedMealItem[]>();
+  for (const item of items) {
+    const bucket = byMeal.get(item.savedMealId);
+    if (bucket) bucket.push(item);
+    else byMeal.set(item.savedMealId, [item]);
+  }
+
+  return meals.map((meal) => {
+    const mealItems = byMeal.get(meal.id) ?? [];
+    return {
+      id: meal.id,
+      name: meal.name,
+      createdAt: meal.createdAt,
+      items: mealItems,
+      totals: sumSavedItems(mealItems),
+    };
+  });
+}
+
+/** Creates a named meal template from a list of staged/logged items. */
+export async function createSavedMeal(
+  userId: number,
+  name: string,
+  items: SavedMealItemInput[]
+): Promise<SavedMealSummary> {
+  return db.transaction(async (tx) => {
+    const [meal] = await tx.insert(savedMeals).values({ userId, name }).returning();
+
+    const inserted = await tx
+      .insert(savedMealItems)
+      .values(
+        items.map((item, index) => ({
+          savedMealId: meal.id,
+          name: item.name,
+          quantity: item.quantity,
+          calories: item.calories,
+          proteinG: item.proteinG,
+          carbsG: item.carbsG,
+          fatG: item.fatG,
+          position: index,
+        }))
+      )
+      .returning();
+
+    inserted.sort((a, b) => a.position - b.position);
+
+    return {
+      id: meal.id,
+      name: meal.name,
+      createdAt: meal.createdAt,
+      items: inserted,
+      totals: sumSavedItems(inserted),
+    };
+  });
+}
+
+export async function deleteSavedMeal(userId: number, mealId: number) {
+  const [deleted] = await db
+    .delete(savedMeals)
+    .where(and(eq(savedMeals.id, mealId), eq(savedMeals.userId, userId)))
     .returning();
   return deleted ?? null;
 }

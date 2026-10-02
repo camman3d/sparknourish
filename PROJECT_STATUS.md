@@ -26,6 +26,7 @@ SparkNourish is a mobile-first web application designed for daily nutrition and 
   * **Movement / exercise tracking:** A full movement feature — `/move` hub (today ring, weekly bars, recent list), `/move/log` activity logger, `/move/timer` live stopwatch, `/move/complete` finish screen, and a weekly-goal step in onboarding. Backed by a `movement_log_entries` table, MET-based calorie estimates, a fifth **Move** nav tab, and a Move tile + "exercise added to budget" pill on Home.
   * **Water tracking:** A `water_log_entries` table with `POST` / `DELETE /api/water`. The Home water tile logs 8 oz glasses (with an undo), fills against the Profile water target, and the Progress "avg water" tile now reports the range average instead of a dash.
   * **All meals view:** The Home "View all" action opens `/meals` — a date-aware list of every meal with item-level calories/macros, a day summary, and per-meal links into the meal-detail editor.
+  * **Saved meals / recipes:** The Add-food "My meals" tile now opens reusable meal templates. A meal can be saved from the staging cart or from a logged meal, then staged into the cart in one tap for repeat logging (new `saved_meals` + `saved_meal_items` tables, `GET`/`POST /api/saved-meals`, `DELETE /api/saved-meals/[id]`).
   * **Brand assets:** The official SparkNourish app icon and wordmark logo ship in `public/` and are wired into the Home header, auth screens and the favicon / app-icon metadata.
 
 ---
@@ -61,7 +62,7 @@ SparkNourish is a mobile-first web application designed for daily nutrition and 
 | **Serving Size Multiplier** |  Implemented | Interactive modal on `/add-food` allowing portion adjustment (0.5x, 1x, 1.5x, 2x, or custom numeric multiplier) with instant macro recalculation. |
 | **Recent & Frequent List** |  Implemented | `getRecentFoods()` (`db/queries.ts`) returns the user's most recently logged distinct foods via `DISTINCT ON (name)`, rendered as "Recent & frequent" when the search box is empty. |
 | **Staging Cart** |  Implemented | "+" / check buttons stage foods into a pending cart; the fixed dark bar shows meal, item count and total kcal, and "Add to log" commits every staged item in one pass. |
-| **Quick-Action Tiles** | ⚠️ Partial | "Quick add" opens the existing AI natural-language logger. "Snap photo" (photo logging) and "My meals" (saved meals) are no-op placeholders — see §6. |
+| **Quick-Action Tiles** | ⚠️ Partial | "Quick add" opens the existing AI natural-language logger and "My meals" opens saved meal templates (see §A3). "Snap photo" (photo logging) remains a no-op placeholder — see §6. |
 | **Barcode Scanner** | ❌ Not Implemented | UPC/EAN barcode scanning via mobile camera. The scan button in the search bar is a no-op placeholder — see §6. |
 
 ---
@@ -75,6 +76,18 @@ SparkNourish is a mobile-first web application designed for daily nutrition and 
 | **Daily-Goal Calorie Ring** | ✅ Implemented | Reuses `CalorieRing.tsx` for the `% of day` donut plus the scaled kcal against the user's `dailyCalorieGoal`. |
 | **Macro & Micronutrient Breakdown** | ✅ Implemented | Protein/carbs/fat columns scaled to the serving, with per-macro goal bars, followed by Fiber / Sugar / Sodium / Cholesterol rows. |
 | **Add to Meal** | ✅ Implemented | Fixed coral "Add to <meal>" button posts to `/api/food-log` (respecting the `meal` and `date` query params) and returns to the Diary. The star/favourite toggle is local-only. |
+
+---
+
+### A3. Saved Meals / Recipes (`/add-food` → "My meals")
+
+| Feature | Status | Implementation Details |
+| :--- | :---: | :--- |
+| **Saved Meal Templates** | ✅ Implemented | New `saved_meals` + `saved_meal_items` tables (migration `0006_easy_santa_claus.sql`), both cascading from the user. `GET /api/saved-meals` returns each template with its ordered items and calorie/macro totals. |
+| **"My meals" Tile** | ✅ Implemented | The previously no-op Add-food "My meals" action opens a saved-meals list. Each card shows the item count, kcal and `P · C · F`; the round +/check stages or unstages the whole template into the cart in one tap, and the trash icon deletes it. |
+| **Save from Cart** | ✅ Implemented | A bookmark button in the staging cart opens a "Save as meal" modal; `POST /api/saved-meals` persists the staged items as a named template (max 50 items, 80-char name). |
+| **Save from Meal Detail** | ✅ Implemented | `/meals/[mealId]` gains a "Save meal" action that turns the logged items into a template, with an inline "Saved … to My meals" confirmation. |
+| **Delete** | ✅ Implemented | `DELETE /api/saved-meals/[id]` removes a template (cascading its items); any of its items already in the cart are unstaged. |
 
 ---
 
@@ -98,6 +111,7 @@ SparkNourish is a mobile-first web application designed for daily nutrition and 
 | **Delete Logged Food** |  Implemented | Trash icon in `MealItemList.tsx` triggers `DELETE /api/food-log/[id]`, immediately updating local state and recalculating meal totals. |
 | **Edit Logged Food** |  Implemented | Edit button opens modal to modify food name, quantity, calories, macros, or reassign meal type via `PATCH /api/food-log/[id]`. |
 | **Dynamic Macro Bars** |  Implemented | Real-time recalculation of total calories and protein/carbs/fat bars upon editing/deleting items. |
+| **Save Meal as Template** | ✅ Implemented | "Save meal" turns the day's logged items into a reusable template (see §A3) and shows an inline "Saved … to My meals" confirmation. |
 | **Past Date Meal History** | ❌ Not Implemented | Meal detail view is bound to today's date; past logs cannot be reviewed in itemized detail. |
 
 ---
@@ -193,6 +207,8 @@ erDiagram
     users ||--o{ movement_log_entries : "has many"
     users ||--o{ water_log_entries : "has many"
     users ||--o{ custom_foods : "has many"
+    users ||--o{ saved_meals : "has many"
+    saved_meals ||--o{ saved_meal_items : "has many"
 
     users {
         serial id PK
@@ -272,6 +288,26 @@ erDiagram
         timestamp with_tz updated_at
     }
 
+    saved_meals {
+        serial id PK
+        integer user_id FK
+        text name
+        timestamp with_tz created_at
+        timestamp with_tz updated_at
+    }
+
+    saved_meal_items {
+        serial id PK
+        integer saved_meal_id FK
+        text name
+        text quantity
+        integer calories
+        real protein_g
+        real carbs_g
+        real fat_g
+        integer position
+    }
+
     usda_foods {
         integer fdc_id PK
         text name
@@ -314,6 +350,9 @@ erDiagram
 | `/api/custom-foods` | `GET` |  Yes | Returns all custom foods created by authenticated user. |
 | `/api/custom-foods` | `POST` |  Yes | Creates a new custom food item. |
 | `/api/custom-foods/[id]` | `DELETE`|  Yes | Deletes a custom food item owned by the user. |
+| `/api/saved-meals` | `GET` |  Yes | Lists the user's saved meal templates with their ordered items and totals. |
+| `/api/saved-meals` | `POST` |  Yes | Creates a saved meal from a name and a list of items (validated, max 50 items). |
+| `/api/saved-meals/[id]` | `DELETE`|  Yes | Deletes a saved meal and its items (cascade). |
 | `/api/foods/search` | `GET` |  Yes | Searches across custom foods and USDA foods with `q` query parameter. |
 | `/api/ai/parse-meal` | `POST` |  Yes | Parses natural language meal text into structured foods & macros using OpenRouter. |
 | `/api/ai/estimate-food` | `POST` |  Yes | Estimates calories, protein, carbs, and fat for a single named food using OpenRouter. |
@@ -329,7 +368,6 @@ data or behaviour yet. They render for design fidelity only; each is a `no-op`
 | UI Element | Location | Reason |
 | :--- | :--- | :--- |
 | "Snap photo" tile | Add food (`FoodSearch.tsx`) | Photo/vision meal logging is not implemented. |
-| "My meals" tile | Add food (`FoodSearch.tsx`) | Saved/favourite multi-item meals are not implemented. |
 | Barcode scan button | Add food search bar | Barcode scanning is not implemented (`getRecentFoods` powers the list instead). |
 | Protein-gap fix tip ("A yogurt at breakfast adds 17g") | Progress insight card | Static copy; no AI recommendation engine. The headline/gap value are computed for real. |
 | Favourite star | Food detail (`/food/[id]`) | Local toggle only; there is no favourites table or endpoint. |
@@ -359,16 +397,17 @@ data or behaviour yet. They render for design fidelity only; each is a `no-op`
 | T-014 | Mobile layout: persistent full-width bottom nav + Home horizontal-overflow fix | ✅ Completed | The bottom nav is now `fixed inset-x-0 bottom-0` so it spans the device width and stays visible on every screen while scrolling; `BottomNav` emits a spacer that reserves its height (plus `env(safe-area-inset-bottom)`), and the root layout opts into `viewportFit: "cover"` with a sand `themeColor`. The nav pill/label were tightened (`w-12`, `truncate`) for narrow screens. On Home the Water + Move tiles moved from `flex` to `grid grid-cols-2` (whose `minmax(0,1fr)` tracks cannot overflow), and each tile header keeps the icon + label on the left and its action button on the right on a single, non-wrapping line (`truncate` protects the label). The Water tile's minus was removed from the header — tapping the **Water** label now opens a modal with a large oz readout, progress bar and −/+ glass stepper (plus Done), while the tile's + still logs a glass instantly. The Add-food staging cart and the Food-detail action bar now offset by the nav height + safe-area inset; `html`/`body` carry `overflow-x-hidden` as a net. `npm run lint`, `npx tsc --noEmit` and `npm run build` all pass. |
 | T-015 | Timezone-sensitive day boundaries | ✅ Completed | Added `users.timezone` (migration `0005_boring_titania.sql`) plus zone-aware calendar helpers in `app/_lib/calendar.ts` (`isValidTimeZone`/`resolveTimeZone`, `dateKeyInTimeZone`, `dayBoundsInTimeZone`/`dayBoundsForMarker`, `todayKey`/`todayMarker`, `markerAtLocalHour`) that convert local midnight to UTC instants and handle DST/half-hour zones. Every day-scoped query (`getMealsForDate`, `getMealEntries`, `getLastLoggedMealToday`, `getHistory`, `getMovementForDate`/`Overview`, `getWaterForDate`, `deleteLatestWaterEntry`) now takes the user's zone; pages/route handlers pass `resolveTimeZone(user.timezone)`, back-dated entries are stamped at local noon, and meal times/history buckets/movement weeks use local days. The zone is captured on signup/login, re-synced on load by `TimeZoneSync` → `POST /api/profile/timezone` (no-op when unchanged), and editable under Profile → Preferences. Verified the offset/DST math with a throwaway script and `npm run lint` / `npx tsc --noEmit` / `npm run build` all pass. |
 | T-016 | Fix: login/signup logo stretched full-width | ✅ Completed | The wordmark sits in a `flex flex-col` header, whose default `align-items: stretch` overrode `w-auto` and stretched the image across the container. Added `self-center` to the `SparkNourishLogo.png` `Image` on `/login` and `/signup` so it renders centered at its intrinsic aspect ratio (`h-16`). |
+| T-017 | Saved meals / recipes | ✅ Completed | New `saved_meals` + `saved_meal_items` tables (migration `0006_easy_santa_claus.sql`) backing the Add-food "My meals" tile: `GET`/`POST /api/saved-meals` and `DELETE /api/saved-meals/[id]`. Templates can be saved from the staging cart (bookmark) or a logged meal ("Save meal"), then staged into the cart in one tap for repeat logging. `npm run lint`, `npx tsc --noEmit` and `npm run build` all pass; the query layer was smoke-tested against Postgres (create → list ordered items → delete → count restored) and the migration was applied. |
 
 ---
 
 ## 8. Recommended Next Steps
 
-1. **Saved Meals / Recipes:** Back the "My meals" tile with reusable meal templates that can be staged in one tap.
-2. **Barcode Scanning:** Mobile camera barcode scanning for packaged foods.
-3. **Clickable History Days:** Allow users to tap a day on Progress to review the foods logged that day (day-level data already exists).
-4. **Favourites:** Back the food-detail star with a `favourite_foods` table and surface favourites in Add food.
-5. **Notifications:** Turn the Profile reminders toggle into scheduled meal/water/movement nudges.
-6. **Movement insights:** Surface movement in Progress (weekly trend + streaks) and let logged sessions be deleted/edited from the Move screen (the PATCH/DELETE endpoints already exist).
-7. **Water history insight:** Add a per-day water trend/streak to Progress now that `water_log_entries` exists.
+1. **Barcode Scanning:** Mobile camera barcode scanning for packaged foods.
+2. **Clickable History Days:** Allow users to tap a day on Progress to review the foods logged that day (day-level data already exists).
+3. **Favourites:** Back the food-detail star with a `favourite_foods` table and surface favourites in Add food.
+4. **Notifications:** Turn the Profile reminders toggle into scheduled meal/water/movement nudges.
+5. **Movement insights:** Surface movement in Progress (weekly trend + streaks) and let logged sessions be deleted/edited from the Move screen (the PATCH/DELETE endpoints already exist).
+6. **Water history insight:** Add a per-day water trend/streak to Progress now that `water_log_entries` exists.
+7. **Saved-meal editing:** Rename/reorder saved meals and log a template directly without staging first (the item rows already carry a `position`).
 

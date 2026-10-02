@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, BookmarkPlus, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { MacroBar } from "../../_components/MacroBar";
 import { mealOptions, type MealId } from "../../_lib/mock-data";
 import type { FoodLogEntry } from "../../../db/schema";
@@ -25,6 +25,13 @@ export function MealItemList({
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // "Save as meal" template state
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [savingMeal, setSavingMeal] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedMealName, setSavedMealName] = useState<string | null>(null);
 
   // Edit form state
   const [editName, setEditName] = useState("");
@@ -114,6 +121,47 @@ export function MealItemList({
     router.refresh();
   }
 
+  function openSaveModal() {
+    setSaveName("");
+    setSaveError(null);
+    setShowSaveModal(true);
+  }
+
+  async function handleSaveMeal(e: React.FormEvent) {
+    e.preventDefault();
+    const name = saveName.trim();
+    if (!name || !items.length || savingMeal) return;
+
+    setSavingMeal(true);
+    setSaveError(null);
+
+    const res = await fetch("/api/saved-meals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        items: items.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          calories: item.calories,
+          protein: item.proteinG,
+          carbs: item.carbsG,
+          fat: item.fatG,
+        })),
+      }),
+    });
+
+    setSavingMeal(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setSaveError(data.error || "Failed to save meal. Please try again.");
+      return;
+    }
+
+    setShowSaveModal(false);
+    setSavedMealName(name);
+  }
+
   return (
     <>
       <section className="card p-5">
@@ -129,16 +177,34 @@ export function MealItemList({
       </section>
 
       <section>
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="font-display text-xl font-bold text-forest-900">Logged items</h2>
-          <Link
-            href={`/add-food?meal=${mealId}`}
-            className="flex items-center gap-1 text-sm font-semibold text-forest-700"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.25} aria-hidden />
-            Add food
-          </Link>
+          <div className="flex shrink-0 items-center gap-3">
+            {items.length > 0 && (
+              <button
+                type="button"
+                onClick={openSaveModal}
+                className="flex items-center gap-1 text-sm font-semibold text-forest-700"
+              >
+                <BookmarkPlus className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+                Save meal
+              </button>
+            )}
+            <Link
+              href={`/add-food?meal=${mealId}`}
+              className="flex items-center gap-1 text-sm font-semibold text-forest-700"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+              Add food
+            </Link>
+          </div>
         </div>
+
+        {savedMealName && (
+          <p className="mb-3 text-xs font-medium text-forest-700">
+            Saved “{savedMealName}” to My meals.
+          </p>
+        )}
 
         <ul className="card divide-y divide-sand-100 overflow-hidden">
           {items.map((item) => (
@@ -187,6 +253,75 @@ export function MealItemList({
           )}
         </ul>
       </section>
+
+      {/* Save as meal modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-xs sm:items-center">
+          <div className="w-full max-w-sm rounded-card bg-white p-5 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-display text-lg font-bold text-forest-900">Save as meal</h3>
+              <button
+                type="button"
+                onClick={() => setShowSaveModal(false)}
+                className="text-sand-400 hover:text-sand-600"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" strokeWidth={2} aria-hidden />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveMeal} className="flex flex-col gap-3">
+              <div>
+                <label className={labelClass}>Meal name *</label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  maxLength={80}
+                  placeholder="e.g. My usual lunch"
+                  value={saveName}
+                  onChange={(e) => setSaveName(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="rounded-tile bg-sand-50 p-3 text-sm text-sand-600">
+                {items.length} item{items.length === 1 ? "" : "s"} ·{" "}
+                <span className="font-semibold text-forest-900">{totals.calories} kcal</span>
+              </div>
+
+              {saveError && <p className="text-xs font-semibold text-coral-700">{saveError}</p>}
+
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSaveModal(false)}
+                  className="w-1/3 rounded-xl border border-sand-200 py-2.5 text-xs font-semibold text-sand-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingMeal || !saveName.trim()}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-forest-700 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-forest-800 disabled:opacity-60"
+                >
+                  {savingMeal ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} aria-hidden />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      <BookmarkPlus className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+                      Save meal
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {editingItem && (
