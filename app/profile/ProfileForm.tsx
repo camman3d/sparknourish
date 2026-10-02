@@ -49,8 +49,16 @@ function toFormState(profile: Profile): FormState {
 }
 
 const inputClass =
-  "w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-400 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50";
-const labelClass = "mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300";
+  "w-full rounded-xl border border-sand-200 bg-white px-3 py-2.5 text-sm text-forest-900 placeholder:text-sand-400 focus:border-forest-500 focus:outline-none";
+const labelClass = "mb-1.5 block text-sm font-medium text-sand-600";
+const primaryButton =
+  "flex w-full items-center justify-center gap-1.5 rounded-xl bg-forest-700 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-forest-800 disabled:opacity-60";
+
+function chipClass(selected: boolean) {
+  return `whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+    selected ? "bg-forest-700 text-white" : "bg-sand-100 text-sand-600 hover:bg-sand-200"
+  }`;
+}
 
 export function ProfileForm() {
   const router = useRouter();
@@ -150,14 +158,14 @@ export function ProfileForm() {
   }
 
   if (!form) {
-    return <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading profile...</p>;
+    return <p className="text-sm text-sand-500">Loading profile…</p>;
   }
 
   return (
     <div className="flex flex-col gap-5">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="mb-4 flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-50">
-          <UserRound className="h-4.5 w-4.5 text-zinc-400" strokeWidth={1.75} aria-hidden />
+      <section className="card p-5">
+        <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-forest-900">
+          <UserRound className="h-4.5 w-4.5 text-sand-400" strokeWidth={1.75} aria-hidden />
           Basic info
         </h2>
 
@@ -180,11 +188,7 @@ export function ProfileForm() {
                   key={option.id}
                   type="button"
                   onClick={() => update("gender", option.id)}
-                  className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                    form.gender === option.id
-                      ? "bg-emerald-600 text-white"
-                      : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                  }`}
+                  className={chipClass(form.gender === option.id)}
                 >
                   {option.name}
                 </button>
@@ -245,11 +249,7 @@ export function ProfileForm() {
                   key={option.id}
                   type="button"
                   onClick={() => update("activityLevel", option.id)}
-                  className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                    form.activityLevel === option.id
-                      ? "bg-emerald-600 text-white"
-                      : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                  }`}
+                  className={chipClass(form.activityLevel === option.id)}
                 >
                   {option.name}
                 </button>
@@ -272,12 +272,12 @@ export function ProfileForm() {
           type="button"
           onClick={handleSave}
           disabled={saveState === "saving"}
-          className="mt-5 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+          className={`${primaryButton} mt-5`}
         >
           {saveState === "saving" ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
-              Saving...
+              Saving…
             </>
           ) : (
             <>
@@ -288,14 +288,13 @@ export function ProfileForm() {
         </button>
       </section>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-50">
-          <Sparkles className="h-4.5 w-4.5 text-zinc-400" strokeWidth={1.75} aria-hidden />
+      <section className="card p-5">
+        <h2 className="flex items-center gap-2 font-display text-lg font-bold text-forest-900">
+          <Sparkles className="h-4.5 w-4.5 text-sand-400" strokeWidth={1.75} aria-hidden />
           AI features
         </h2>
-        <p className="mb-4 mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Add an OpenRouter API key to unlock upcoming AI-powered features, like meal suggestions and
-          smarter food logging.
+        <p className="mb-4 mt-1 text-sm text-sand-500">
+          Add an OpenRouter API key to unlock AI-powered meal parsing and nutrition estimation.
         </p>
 
         <label className={labelClass}>OpenRouter API key</label>
@@ -311,7 +310,7 @@ export function ProfileForm() {
             type="button"
             onClick={() => setShowApiKey((prev) => !prev)}
             aria-label={showApiKey ? "Hide API key" : "Show API key"}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-sand-400 hover:text-sand-600"
           >
             {showApiKey ? (
               <EyeOff className="h-4.5 w-4.5" strokeWidth={1.75} aria-hidden />
@@ -325,12 +324,12 @@ export function ProfileForm() {
           type="button"
           onClick={handleSaveApiKey}
           disabled={apiKeySaveState === "saving"}
-          className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+          className={`${primaryButton} mt-4`}
         >
           {apiKeySaveState === "saving" ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
-              Saving...
+              Saving…
             </>
           ) : (
             <>
@@ -341,18 +340,18 @@ export function ProfileForm() {
         </button>
       </section>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="card p-5">
         <button
           type="button"
           onClick={() => setPasswordOpen((prev) => !prev)}
           className="flex w-full items-center justify-between"
         >
-          <h2 className="flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-50">
-            <Lock className="h-4.5 w-4.5 text-zinc-400" strokeWidth={1.75} aria-hidden />
+          <h2 className="flex items-center gap-2 font-display text-lg font-bold text-forest-900">
+            <Lock className="h-4.5 w-4.5 text-sand-400" strokeWidth={1.75} aria-hidden />
             Change password
           </h2>
           <ChevronDown
-            className={`h-4.5 w-4.5 text-zinc-400 transition-transform ${passwordOpen ? "rotate-180" : ""}`}
+            className={`h-4.5 w-4.5 text-sand-400 transition-transform ${passwordOpen ? "rotate-180" : ""}`}
             strokeWidth={2}
             aria-hidden
           />
@@ -388,27 +387,19 @@ export function ProfileForm() {
               />
             </div>
 
-            {passwordError && (
-              <p className="text-sm font-medium" style={{ color: "#d03b3b" }}>
-                {passwordError}
-              </p>
-            )}
-            {passwordSuccess && (
-              <p className="text-sm font-medium" style={{ color: "#0ca30c" }}>
-                Password updated.
-              </p>
-            )}
+            {passwordError && <p className="text-sm font-medium text-coral-700">{passwordError}</p>}
+            {passwordSuccess && <p className="text-sm font-medium text-forest-700">Password updated.</p>}
 
             <button
               type="button"
               onClick={handlePasswordSubmit}
               disabled={passwordSaving || !currentPassword || !newPassword || !confirmPassword}
-              className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+              className={primaryButton}
             >
               {passwordSaving ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
-                  Updating...
+                  Updating…
                 </>
               ) : (
                 <>
@@ -425,12 +416,12 @@ export function ProfileForm() {
         type="button"
         onClick={handleLogout}
         disabled={loggingOut}
-        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-500 transition-colors hover:border-red-300 hover:text-red-600 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-400"
+        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-sand-300 px-4 py-3 text-sm font-semibold text-sand-500 transition-colors hover:border-coral-300 hover:text-coral-700 disabled:opacity-60"
       >
         {loggingOut ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
-            Logging out...
+            Logging out…
           </>
         ) : (
           <>

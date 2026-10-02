@@ -3,14 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { MacroBar } from "../../_components/MacroBar";
 import { mealOptions, type MealId } from "../../_lib/mock-data";
 import type { FoodLogEntry } from "../../../db/schema";
 
 const inputClass =
-  "w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-400 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50";
-const labelClass = "mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400";
+  "w-full rounded-xl border border-sand-200 bg-white px-3 py-2 text-sm text-forest-900 placeholder:text-sand-400 focus:border-forest-500 focus:outline-none";
+const labelClass = "mb-1 block text-xs font-medium text-sand-600";
 
 export function MealItemList({
   initialItems,
@@ -116,11 +116,12 @@ export function MealItemList({
 
   return (
     <>
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <p className="text-3xl font-bold tabular-nums text-zinc-900 dark:text-zinc-50">
-          {totals.calories} <span className="text-base font-normal text-zinc-400">kcal total</span>
+      <section className="card p-5">
+        <p className="font-display text-4xl font-bold tabular-nums text-forest-900">
+          {totals.calories}
+          <span className="ml-1 text-base font-medium text-sand-500">kcal total</span>
         </p>
-        <div className="mt-4 flex flex-col gap-3">
+        <div className="mt-5 grid grid-cols-3 gap-4">
           <MacroBar label="Protein" grams={totals.protein} kind="protein" />
           <MacroBar label="Carbs" grams={totals.carbs} kind="carbs" />
           <MacroBar label="Fat" grams={totals.fat} kind="fat" />
@@ -129,29 +130,31 @@ export function MealItemList({
 
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Logged items</h2>
+          <h2 className="font-display text-xl font-bold text-forest-900">Logged items</h2>
           <Link
             href={`/add-food?meal=${mealId}`}
-            className="flex items-center gap-1 text-sm font-medium text-emerald-600 dark:text-emerald-400"
+            className="flex items-center gap-1 text-sm font-semibold text-forest-700"
           >
             <Plus className="h-4 w-4" strokeWidth={2.25} aria-hidden />
             Add food
           </Link>
         </div>
 
-        <ul className="flex flex-col divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white shadow-sm dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
+        <ul className="card divide-y divide-sand-100 overflow-hidden">
           {items.map((item) => (
-            <li key={item.id} className="group flex items-center justify-between gap-3 px-4 py-3">
+            <li key={item.id} className="flex items-center justify-between gap-3 px-4 py-3.5">
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-zinc-900 dark:text-zinc-50">{item.name}</p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {item.quantity} · P {item.proteinG}g · C {item.carbsG}g · F {item.fatG}g
+                <p className="truncate font-semibold text-forest-900">{item.name}</p>
+                <p className="text-xs text-sand-500">
+                  {item.quantity} · {Math.round(item.proteinG)}P {Math.round(item.carbsG)}C{" "}
+                  {Math.round(item.fatG)}F
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
-                <p className="shrink-0 font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-                  {item.calories} <span className="text-xs font-normal text-zinc-400">kcal</span>
+                <p className="shrink-0 font-display font-bold tabular-nums text-forest-900">
+                  {item.calories}
+                  <span className="ml-1 text-xs font-medium text-sand-500">kcal</span>
                 </p>
 
                 <div className="flex items-center gap-1 pl-1">
@@ -159,7 +162,7 @@ export function MealItemList({
                     type="button"
                     onClick={() => startEdit(item)}
                     aria-label={`Edit ${item.name}`}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-sand-400 transition-colors hover:bg-sand-100 hover:text-forest-700"
                   >
                     <Pencil className="h-4 w-4" strokeWidth={1.75} aria-hidden />
                   </button>
@@ -169,7 +172,7 @@ export function MealItemList({
                     disabled={deletingId === item.id}
                     onClick={() => handleDelete(item.id)}
                     aria-label={`Delete ${item.name}`}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-sand-400 transition-colors hover:bg-coral-50 hover:text-coral-700 disabled:opacity-50"
                   >
                     <Trash2 className="h-4 w-4" strokeWidth={1.75} aria-hidden />
                   </button>
@@ -178,7 +181,7 @@ export function MealItemList({
             </li>
           ))}
           {items.length === 0 && (
-            <li className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+            <li className="px-4 py-8 text-center text-sm text-sand-500">
               Nothing logged for this meal yet.
             </li>
           )}
@@ -187,14 +190,15 @@ export function MealItemList({
 
       {/* Edit Modal */}
       {editingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-xs sm:items-center">
+          <div className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-card bg-white p-5 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">Edit Logged Food</h3>
+              <h3 className="font-display text-lg font-bold text-forest-900">Edit logged food</h3>
               <button
                 type="button"
                 onClick={() => setEditingItem(null)}
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                className="text-sand-400 hover:text-sand-600"
+                aria-label="Close"
               >
                 <X className="h-5 w-5" strokeWidth={2} aria-hidden />
               </button>
@@ -202,7 +206,7 @@ export function MealItemList({
 
             <form onSubmit={handleSaveEdit} className="flex flex-col gap-3">
               <div>
-                <label className={labelClass}>Food Name</label>
+                <label className={labelClass}>Food name</label>
                 <input
                   type="text"
                   required
@@ -213,7 +217,7 @@ export function MealItemList({
               </div>
 
               <div>
-                <label className={labelClass}>Serving / Quantity</label>
+                <label className={labelClass}>Serving / quantity</label>
                 <input
                   type="text"
                   required
@@ -289,26 +293,32 @@ export function MealItemList({
                 </div>
               </div>
 
-              {error && (
-                <p className="text-xs font-medium" style={{ color: "#d03b3b" }}>
-                  {error}
-                </p>
-              )}
+              {error && <p className="text-xs font-semibold text-coral-700">{error}</p>}
 
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setEditingItem(null)}
-                  className="w-1/3 rounded-xl border border-zinc-200 py-2 text-xs font-medium text-zinc-600 dark:border-zinc-800 dark:text-zinc-400"
+                  className="w-1/3 rounded-xl border border-sand-200 py-2 text-xs font-semibold text-sand-600"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 rounded-xl bg-emerald-600 py-2 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-forest-700 py-2 text-xs font-semibold text-white transition-colors hover:bg-forest-800 disabled:opacity-60"
                 >
-                  {saving ? "Saving..." : "Save changes"}
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} aria-hidden />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                      Save changes
+                    </>
+                  )}
                 </button>
               </div>
             </form>

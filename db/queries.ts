@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, ilike, lt, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, lt, or, sql } from "drizzle-orm";
 import { db } from "./index";
 import {
   customFoods,
@@ -273,5 +273,50 @@ export async function searchFoods(userId: number, query: string, limit = 25) {
   ]);
 
   return { custom: customMatches, usda: usdaMatches };
+}
+
+export type RecentFood = {
+  name: string;
+  quantity: string;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+};
+
+/**
+ * Distinct foods the user has logged most recently, for the "Recent & frequent"
+ * list on the Add food screen. One row per food name (the latest logged portion).
+ */
+export async function getRecentFoods(userId: number, limit = 6): Promise<RecentFood[]> {
+  const result = await db.execute(sql`
+    select distinct on (name)
+      name, quantity, calories, protein_g, carbs_g, fat_g, logged_at
+    from food_log_entries
+    where user_id = ${userId}
+    order by name asc, logged_at desc
+  `);
+
+  type Row = {
+    name: string;
+    quantity: string;
+    calories: number;
+    protein_g: string | number;
+    carbs_g: string | number;
+    fat_g: string | number;
+    logged_at: string | Date;
+  };
+
+  return Array.from(result as unknown as Row[])
+    .sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())
+    .slice(0, limit)
+    .map((row) => ({
+      name: row.name,
+      quantity: row.quantity,
+      calories: row.calories,
+      proteinG: Number(row.protein_g),
+      carbsG: Number(row.carbs_g),
+      fatG: Number(row.fat_g),
+    }));
 }
 

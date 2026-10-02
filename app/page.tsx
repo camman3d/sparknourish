@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { Plus, UserRound } from "lucide-react";
+import { Leaf, Plus, SlidersHorizontal } from "lucide-react";
+import { CalorieRing } from "./_components/CalorieRing";
 import { MacroBar } from "./_components/MacroBar";
-import { MealIcon } from "./_components/MealIcon";
+import { MealIcon, mealTint } from "./_components/MealIcon";
+import { WaterTracker } from "./_components/WaterTracker";
 import { getTodayMeals } from "../db/queries";
 import { requireUser } from "./_lib/auth";
 
@@ -27,90 +29,120 @@ export default async function DashboardPage() {
   const firstName = user.name.split(" ")[0];
 
   return (
-    <main className="flex flex-col gap-6 px-5 pb-8 pt-8">
-      <header className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">{dateLabel}</p>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-            {greeting}, {firstName}
-          </h1>
+    <main className="flex flex-col gap-5 px-5 pb-8 pt-8">
+      <header className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-forest-800 text-forest-100">
+            <Leaf className="h-6 w-6" strokeWidth={1.75} aria-hidden />
+          </span>
+          <div>
+            <p className="text-sm text-sand-500">{dateLabel}</p>
+            <h1 className="font-display text-2xl font-bold leading-tight text-forest-900">
+              {greeting}, {firstName}
+            </h1>
+          </div>
         </div>
         <Link
           href="/profile"
-          aria-label="Profile"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400"
+          aria-label="Profile settings"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-forest-900 shadow-card"
         >
-          <UserRound className="h-4.5 w-4.5" strokeWidth={1.75} aria-hidden />
+          <SlidersHorizontal className="h-5 w-5" strokeWidth={1.75} aria-hidden />
         </Link>
       </header>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-3xl font-bold tabular-nums text-zinc-900 dark:text-zinc-50">
+      <section className="card p-6">
+        <div className="flex items-center justify-between gap-3">
+          <CalorieRing pct={pct} />
+          <div className="min-w-0 text-right">
+            <p className="text-sm text-sand-500">Remaining today</p>
+            <p className="font-display text-4xl font-bold tabular-nums leading-none text-forest-900">
               {remaining.toLocaleString()}
+              <span className="ml-1 text-base font-medium text-sand-500">kcal</span>
             </p>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">calories remaining</p>
-          </div>
-          <div className="text-right text-sm text-zinc-500 dark:text-zinc-400">
-            <p className="tabular-nums text-zinc-900 dark:text-zinc-50">
-              {totals.calories.toLocaleString()}
-              <span className="text-zinc-400 dark:text-zinc-500">
-                {" "}
-                / {user.dailyCalorieGoal.toLocaleString()}
-              </span>
+            <p className="mt-2 text-sm text-sand-500">
+              {totals.calories.toLocaleString()} eaten · {user.dailyCalorieGoal.toLocaleString()} goal
             </p>
-            <p>eaten today</p>
           </div>
-        </div>
-        <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
         </div>
 
-        <div className="mt-5 flex flex-col gap-3">
+        <hr className="my-5 border-sand-200" />
+
+        <div className="grid grid-cols-3 gap-4">
           <MacroBar label="Protein" grams={totals.protein} goalGrams={user.proteinGoalG} kind="protein" />
           <MacroBar label="Carbs" grams={totals.carbs} goalGrams={user.carbsGoalG} kind="carbs" />
           <MacroBar label="Fat" grams={totals.fat} goalGrams={user.fatGoalG} kind="fat" />
         </div>
       </section>
 
+      <WaterTracker goalOz={80} />
+
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Today&apos;s meals</h2>
-          <Link
-            href="/add-food"
-            className="flex items-center gap-1 text-sm font-medium text-emerald-600 dark:text-emerald-400"
+          <h2 className="font-display text-xl font-bold text-forest-900">Today&apos;s meals</h2>
+          {/* No dedicated all-meals view exists yet — intentional no-op. */}
+          <button
+            type="button"
+            title="All-meals view is coming soon"
+            className="text-sm font-semibold text-forest-700"
           >
-            <Plus className="h-4 w-4" strokeWidth={2.25} aria-hidden />
-            Add food
-          </Link>
+            View all
+          </button>
         </div>
 
-        <div className="flex flex-col gap-3">
-          {meals.map((meal) => (
-            <Link
-              key={meal.id}
-              href={`/meals/${meal.id}`}
-              className="flex items-center justify-between rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition-colors hover:border-emerald-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-emerald-700"
-            >
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                  <MealIcon meal={meal.id} className="h-4.5 w-4.5" />
+        <div className="card divide-y divide-sand-100 px-4">
+          {meals.map((meal) => {
+            const logged = meal.items.length > 0;
+            const badge = logged
+              ? mealTint[meal.id]
+              : "border border-dashed border-sand-300 text-sand-400";
+
+            const row = (
+              <div className="flex items-center gap-3 py-3.5">
+                <span
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-tile ${badge}`}
+                >
+                  <MealIcon meal={meal.id} className="h-5 w-5" />
                 </span>
-                <div>
-                  <p className="font-medium text-zinc-900 dark:text-zinc-50">{meal.name}</p>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    {meal.items.length
-                      ? `${meal.items.length} item${meal.items.length === 1 ? "" : "s"} · ${meal.time}`
-                      : "Nothing logged yet"}
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-forest-900">{meal.name}</p>
+                  <p className="truncate text-sm text-sand-500">
+                    {logged
+                      ? `${Math.round(meal.totals.protein)}P · ${Math.round(
+                          meal.totals.carbs
+                        )}C · ${Math.round(meal.totals.fat)}F`
+                      : "Not logged yet"}
                   </p>
                 </div>
+                {logged ? (
+                  <p className="shrink-0 font-display text-lg font-bold tabular-nums text-forest-900">
+                    {meal.totals.calories}
+                    <span className="ml-1 text-xs font-medium text-sand-500">kcal</span>
+                  </p>
+                ) : (
+                  <Link
+                    href={`/add-food?meal=${meal.id}`}
+                    className="flex shrink-0 items-center gap-1 rounded-full bg-coral-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-coral-700"
+                  >
+                    <Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                    Add
+                  </Link>
+                )}
               </div>
-              <p className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-                {meal.totals.calories} <span className="text-sm font-normal text-zinc-400">kcal</span>
-              </p>
-            </Link>
-          ))}
+            );
+
+            return logged ? (
+              <Link
+                key={meal.id}
+                href={`/meals/${meal.id}`}
+                className="-mx-4 block px-4 transition-colors hover:bg-sand-50"
+              >
+                {row}
+              </Link>
+            ) : (
+              <div key={meal.id}>{row}</div>
+            );
+          })}
         </div>
       </section>
     </main>

@@ -13,8 +13,8 @@ export type FoodEntry = {
 export const mealOptions: { id: MealId; name: string }[] = [
   { id: "breakfast", name: "Breakfast" },
   { id: "lunch", name: "Lunch" },
+  { id: "snacks", name: "Snack" },
   { id: "dinner", name: "Dinner" },
-  { id: "snacks", name: "Snacks" },
 ];
 
 // Reference food database for search/autocomplete in Add Food. Not part of the
@@ -129,7 +129,7 @@ export type DayLog = {
   meals: Record<MealId, number>;
 };
 
-export type HistoryRange = 7 | 30;
+export type HistoryRange = 7 | 30 | 90;
 
 export function historyAverages(days: DayLog[]) {
   const n = days.length || 1;
@@ -173,4 +173,37 @@ export function daysOnTarget(days: DayLog[], goal: number, tolerance = 0.1) {
 
 export function peakDay(days: DayLog[]) {
   return days.reduce((max, day) => (day.calories > max.calories ? day : max), days[0]);
+}
+
+/**
+ * Consecutive logged days ending with the most recent day that has data.
+ * A leading empty day (e.g. today before the first log) does not break the
+ * streak.
+ */
+export function dayStreak(days: DayLog[]) {
+  let streak = 0;
+  for (let i = days.length - 1; i >= 0; i--) {
+    if (days[i].calories > 0) {
+      streak += 1;
+    } else if (streak === 0) {
+      continue;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+/** Share of calories from each macro (protein/carbs 4 kcal/g, fat 9 kcal/g). */
+export function macroSplitCalories(macros: { protein: number; carbs: number; fat: number }) {
+  const protein = macros.protein * 4;
+  const carbs = macros.carbs * 4;
+  const fat = macros.fat * 9;
+  const total = protein + carbs + fat || 1;
+  return {
+    protein: Math.round((protein / total) * 100),
+    carbs: Math.round((carbs / total) * 100),
+    fat: Math.round((fat / total) * 100),
+    grams: macros,
+  };
 }

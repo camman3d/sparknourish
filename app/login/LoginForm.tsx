@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import { Loader2, LogIn } from "lucide-react";
 
 const inputClass =
-  "w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-400 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50";
-const labelClass = "mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300";
+  "w-full rounded-xl border border-sand-200 bg-white px-3 py-2.5 text-sm text-forest-900 placeholder:text-sand-400 focus:border-forest-500 focus:outline-none";
+const labelClass = "mb-1.5 block text-sm font-medium text-sand-600";
 
 export function LoginForm() {
   const router = useRouter();
@@ -36,10 +36,7 @@ export function LoginForm() {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
-    >
+    <form onSubmit={handleSubmit} className="card flex flex-col gap-4 p-5">
       <div>
         <label htmlFor="email" className={labelClass}>Email</label>
         <input
@@ -65,21 +62,17 @@ export function LoginForm() {
         />
       </div>
 
-      {error && (
-        <p className="text-sm font-medium" style={{ color: "#d03b3b" }}>
-          {error}
-        </p>
-      )}
+      {error && <p className="text-sm font-medium text-coral-700">{error}</p>}
 
       <button
         type="submit"
         disabled={submitting}
-        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-forest-700 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-forest-800 disabled:opacity-60"
       >
         {submitting ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
-            Logging in...
+            Logging in…
           </>
         ) : (
           <>
@@ -89,9 +82,9 @@ export function LoginForm() {
         )}
       </button>
 
-      <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="text-center text-sm text-sand-500">
         New here?{" "}
-        <Link href="/signup" className="font-medium text-emerald-600 dark:text-emerald-400">
+        <Link href="/signup" className="font-semibold text-forest-700">
           Create an account
         </Link>
       </p>

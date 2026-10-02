@@ -1,157 +1,118 @@
 import Link from "next/link";
-import { MacroBar } from "../_components/MacroBar";
+import { Droplet, Flame, Leaf } from "lucide-react";
 import {
-  daysOnTarget,
+  dayStreak,
   historyAverages,
-  mealAverageBreakdown,
-  peakDay,
+  macroSplitCalories,
   type HistoryRange,
 } from "../_lib/mock-data";
 import { getHistory } from "../../db/queries";
 import { requireUser } from "../_lib/auth";
-import { CalorieDeltaChart } from "./CalorieDeltaChart";
-import { MealBreakdownBar } from "./MealBreakdownBar";
+import { CalorieBars } from "./CalorieBars";
+import { MacroSplit } from "./MacroSplit";
 
 // Reads today's date and live food-log data — must render per-request.
 export const dynamic = "force-dynamic";
 
+const RANGE_OPTIONS: { value: HistoryRange; label: string }[] = [
+  { value: 7, label: "Week" },
+  { value: 30, label: "Month" },
+  { value: 90, label: "3 months" },
+];
+
 export default async function HistoryPage(props: PageProps<"/history">) {
   const params = await props.searchParams;
   const requested = Array.isArray(params.range) ? params.range[0] : params.range;
-  const range: HistoryRange = requested === "30" ? 30 : 7;
+  const range: HistoryRange = requested === "30" ? 30 : requested === "90" ? 90 : 7;
 
   const user = await requireUser();
   const days = await getHistory(user.id, range);
   const averages = historyAverages(days);
-  const breakdown = mealAverageBreakdown(days);
-  const onTarget = daysOnTarget(days, user.dailyCalorieGoal);
-  const peak = peakDay(days);
-  const calorieDelta = averages.calories - user.dailyCalorieGoal;
+  const streak = dayStreak(days);
+  const split = macroSplitCalories(averages);
+
+  const rangeLabel = `${days[0].label} – ${days[days.length - 1].label}`;
+  const proteinGap = Math.max(0, user.proteinGoalG - averages.protein);
 
   return (
-    <main className="flex flex-col gap-6 px-5 pb-8 pt-8">
-      <header>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">Trends</p>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Your history</h1>
-      </header>
+    <main className="flex flex-col gap-5 px-5 pb-8 pt-8">
+      <h1 className="font-display text-4xl font-bold text-forest-900">Progress</h1>
 
-      <div className="flex gap-2">
-        {([7, 30] as const).map((option) => (
+      <div className="flex rounded-full bg-sand-200/80 p-1">
+        {RANGE_OPTIONS.map((option) => (
           <Link
-            key={option}
-            href={`/history?range=${option}`}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              range === option
-                ? "bg-emerald-600 text-white"
-                : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+            key={option.value}
+            href={`/history?range=${option.value}`}
+            className={`flex-1 rounded-full py-2 text-center text-sm transition-colors ${
+              range === option.value
+                ? "bg-white font-semibold text-forest-900 shadow-sm"
+                : "font-medium text-sand-600 hover:text-forest-800"
             }`}
           >
-            Last {option} days
+            {option.label}
           </Link>
         ))}
       </div>
 
-      <section className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">Avg calories/day</p>
-          <p className="text-xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+      <section className="card p-5">
+        <p className="text-sm text-sand-500">Daily average · {rangeLabel}</p>
+        <div className="mt-1 flex items-end justify-between gap-3">
+          <p className="font-display text-4xl font-bold tabular-nums leading-none text-forest-900">
             {averages.calories.toLocaleString()}
+            <span className="ml-1 text-base font-medium text-sand-500">kcal</span>
           </p>
-          <p
-            className="text-xs font-medium"
-            style={{ color: calorieDelta <= 0 ? "#0ca30c" : "#d03b3b" }}
-          >
-            {calorieDelta > 0 ? "+" : ""}
-            {calorieDelta.toLocaleString()} vs goal
-          </p>
+          <p className="pb-1 text-sm text-sand-500">Goal {user.dailyCalorieGoal.toLocaleString()}</p>
         </div>
 
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">Avg protein/day</p>
-          <p className="text-xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{averages.protein}g</p>
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">goal {user.proteinGoalG}g</p>
+        <CalorieBars days={days} goal={user.dailyCalorieGoal} />
+      </section>
+
+      <section className="grid grid-cols-3 gap-3">
+        <div className="tile p-4">
+          <Flame className="h-5 w-5 text-coral-600" strokeWidth={1.75} aria-hidden />
+          <p className="mt-3 font-display text-3xl font-bold tabular-nums text-forest-900">{streak}</p>
+          <p className="text-sm text-sand-500">day streak</p>
         </div>
 
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">Days on target</p>
-          <p className="text-xl font-semibold tabular-nums" style={{ color: "#0ca30c" }}>
-            {onTarget}
-            <span className="text-zinc-400 dark:text-zinc-500">/{days.length}</span>
+        <div className="tile p-4">
+          <p className="font-display text-base font-bold text-forest-700">P</p>
+          <p className="mt-3 font-display text-3xl font-bold tabular-nums text-forest-900">
+            {averages.protein}
+            <span className="text-base font-medium text-sand-500">g</span>
           </p>
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">within 10% of goal</p>
+          <p className="text-sm text-sand-500">avg protein</p>
         </div>
 
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">Peak day</p>
-          <p className="text-xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-            {peak.calories.toLocaleString()}
-          </p>
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">
-            {peak.weekday}, {peak.label}
-          </p>
+        {/* Water intake is not tracked yet — intentional no-op placeholder. */}
+        <div className="tile p-4" title="Water tracking is coming soon">
+          <Droplet className="h-5 w-5 text-lagoon-600" strokeWidth={1.75} aria-hidden />
+          <p className="mt-3 font-display text-3xl font-bold tabular-nums text-forest-900">—</p>
+          <p className="text-sm text-sand-500">avg water</p>
         </div>
       </section>
 
-      <CalorieDeltaChart days={days} goal={user.dailyCalorieGoal} />
+      <MacroSplit split={split} />
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <h3 className="mb-4 font-semibold text-zinc-900 dark:text-zinc-50">Average macros/day</h3>
-        <div className="flex flex-col gap-3">
-          <MacroBar label="Protein" grams={averages.protein} goalGrams={user.proteinGoalG} kind="protein" />
-          <MacroBar label="Carbs" grams={averages.carbs} goalGrams={user.carbsGoalG} kind="carbs" />
-          <MacroBar label="Fat" grams={averages.fat} goalGrams={user.fatGoalG} kind="fat" />
-        </div>
-      </section>
-
-      <MealBreakdownBar breakdown={breakdown} />
-
-      <section>
-        <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-50">Daily log</h2>
-        <div className="max-h-80 overflow-y-auto rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-white text-left text-xs text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
-              <tr>
-                <th className="px-4 py-2 font-medium">Day</th>
-                <th className="px-2 py-2 text-right font-medium">Kcal</th>
-                <th className="px-2 py-2 text-right font-medium">P</th>
-                <th className="px-2 py-2 text-right font-medium">C</th>
-                <th className="px-4 py-2 text-right font-medium">F</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {[...days].reverse().map((day) => {
-                const onGoal = Math.abs(day.calories - user.dailyCalorieGoal) <= user.dailyCalorieGoal * 0.1;
-                return (
-                  <tr key={day.date}>
-                    <td className="px-4 py-2">
-                      <span className="flex items-center gap-2">
-                        <span
-                          aria-hidden
-                          className="inline-block h-1.5 w-1.5 rounded-full"
-                          style={{ backgroundColor: onGoal ? "#0ca30c" : "#d03b3b" }}
-                        />
-                        <span className="text-zinc-700 dark:text-zinc-300">
-                          {day.weekday} {day.label}
-                        </span>
-                      </span>
-                    </td>
-                    <td className="px-2 py-2 text-right tabular-nums font-medium text-zinc-900 dark:text-zinc-50">
-                      {day.calories.toLocaleString()}
-                    </td>
-                    <td className="px-2 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
-                      {day.protein}g
-                    </td>
-                    <td className="px-2 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
-                      {day.carbs}g
-                    </td>
-                    <td className="px-4 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
-                      {day.fat}g
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      <section className="flex items-start gap-3 rounded-card bg-forest-50 p-5">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-forest-800 text-forest-100">
+          <Leaf className="h-5.5 w-5.5" strokeWidth={1.75} aria-hidden />
+        </span>
+        <div>
+          {proteinGap > 0 ? (
+            <>
+              <p className="font-display text-lg font-bold text-forest-900">Protein is your gap</p>
+              <p className="text-sm text-sand-600">
+                {proteinGap}g under goal on average. A yogurt at breakfast adds 17g.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-display text-lg font-bold text-forest-900">Protein on target</p>
+              <p className="text-sm text-sand-600">
+                You&apos;re averaging {averages.protein}g, right at your {user.proteinGoalG}g goal.
+              </p>
+            </>
+          )}
         </div>
       </section>
     </main>

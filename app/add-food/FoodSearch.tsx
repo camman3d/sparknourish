@@ -3,14 +3,35 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, Plus, Search, Sparkles, X } from "lucide-react";
-import { MealIcon } from "../_components/MealIcon";
+import {
+  ArrowLeft,
+  Camera,
+  Check,
+  Loader2,
+  Plus,
+  ScanBarcode,
+  Search,
+  Soup,
+  Sparkles,
+  X,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { mealOptions, type MealId } from "../_lib/mock-data";
 import type { CustomFood, UsdaFood } from "../../db/schema";
 
+type RecentFoodProp = {
+  name: string;
+  quantity: string;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+};
+
 type UnifiedFood = {
   id: string;
-  source: "custom" | "usda" | "mock";
+  source: "custom" | "usda" | "recent";
   name: string;
   servingSize: string;
   brandOwner?: string | null;
@@ -29,23 +50,67 @@ type ParsedAiItem = {
   fatG: number;
 };
 
-const inputClass =
-  "w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-400 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50";
-const labelClass = "mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400";
+/** An item added to the pending "Add to log" cart. */
+type StagedItem = {
+  foodId: string;
+  name: string;
+  quantity: string;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+};
 
-export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
+const inputClass =
+  "w-full rounded-xl border border-sand-200 bg-white px-3 py-2 text-sm text-forest-900 placeholder:text-sand-400 focus:border-forest-500 focus:outline-none";
+const labelClass = "mb-1 block text-xs font-medium text-sand-600";
+
+const round1 = (value: number) => Math.round(value * 10) / 10;
+
+function ActionTile({
+  icon: Icon,
+  label,
+  onClick,
+  title,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onClick?: () => void;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className="tile flex flex-col items-center gap-2 px-2 py-4 text-forest-700 transition-transform active:scale-[0.98]"
+    >
+      <Icon className="h-6 w-6" strokeWidth={1.75} aria-hidden />
+      <span className="text-sm font-semibold text-forest-900">{label}</span>
+    </button>
+  );
+}
+
+export function FoodSearch({
+  initialMeal,
+  recent,
+}: {
+  initialMeal: MealId;
+  recent: RecentFoodProp[];
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<"search" | "ai">("search");
   const [query, setQuery] = useState("");
   const [meal, setMeal] = useState<MealId>(initialMeal);
   const [results, setResults] = useState<UnifiedFood[]>([]);
   const [searching, setSearching] = useState(false);
-  const [added, setAdded] = useState<string[]>([]);
-  const [addingId, setAddingId] = useState<string | null>(null);
+  const [createdFoods, setCreatedFoods] = useState<UnifiedFood[]>([]);
+  const [staged, setStaged] = useState<StagedItem[]>([]);
+  const [committing, setCommitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Portion adjuster state for clicked food
-  const [selectedFood, setSelectedFood] = useState<UnifiedFood | null>(null);
+  const [portionFood, setPortionFood] = useState<UnifiedFood | null>(null);
   const [servingsMultiplier, setServingsMultiplier] = useState(1);
 
   // Custom food modal state
@@ -71,13 +136,40 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
   const [aiLogging, setAiLogging] = useState(false);
   const [, startTransition] = useTransition();
 
-  // Search effect with debounce
+  const recentFoods: UnifiedFood[] = recent.map((food, index) => ({
+    id: `recent-${index}-${food.name}`,
+    source: "recent",
+    name: food.name,
+    servingSize: food.quantity,
+    calories: food.calories,
+    proteinG: food.proteinG,
+    carbsG: food.carbsG,
+    fatG: food.fatG,
+  }));
+
+  const listFoods = query.trim() ? results : recentFoods;
+  const displayFoods = createdFoods.length
+    ? [...createdFoods, ...listFoods.filter((f) => !createdFoods.some((c) => c.id === f.id))]
+    : listFoods;
+
+  const mealName = mealOptions.find((option) => option.id === meal)?.name ?? "Meal";
+  const cartCalories = staged.reduce((sum, item) => sum + item.calories, 0);
+
+  // Search effect with debounce. Recent foods are shown when the query is empty.
   useEffect(() => {
+    const trimmed = query.trim();
     let active = true;
     const timer = setTimeout(async () => {
+      if (!active) return;
+      if (!trimmed) {
+        setResults([]);
+        setSearching(false);
+        return;
+      }
+
       setSearching(true);
       try {
-        const res = await fetch(`/api/foods/search?q=${encodeURIComponent(query.trim())}`);
+        const res = await fetch(`/api/foods/search?q=${encodeURIComponent(trimmed)}`);
         if (!res.ok) throw new Error("Search failed");
         const data: { custom: CustomFood[]; usda: UsdaFood[] } = await res.json();
         if (!active) return;
@@ -120,40 +212,61 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
     };
   }, [query]);
 
-  async function handleLogFood(food: UnifiedFood, multiplier = 1) {
-    setAddingId(food.id);
+  function isStaged(foodId: string) {
+    return staged.some((item) => item.foodId === foodId);
+  }
+
+  function stageFood(food: UnifiedFood, multiplier = 1) {
+    const item: StagedItem = {
+      foodId: food.id,
+      name: food.name,
+      quantity:
+        multiplier === 1 ? food.servingSize : `${multiplier}× (${food.servingSize})`,
+      calories: Math.round(food.calories * multiplier),
+      proteinG: round1(food.proteinG * multiplier),
+      carbsG: round1(food.carbsG * multiplier),
+      fatG: round1(food.fatG * multiplier),
+    };
+    setStaged((prev) => [...prev, item]);
+  }
+
+  function unstageFood(foodId: string) {
+    setStaged((prev) => prev.filter((item) => item.foodId !== foodId));
+  }
+
+  async function handleCommit() {
+    if (!staged.length) return;
+    setCommitting(true);
     setError(null);
 
-    const adjustedCalories = Math.round(food.calories * multiplier);
-    const adjustedProtein = Math.round(food.proteinG * multiplier * 10) / 10;
-    const adjustedCarbs = Math.round(food.carbsG * multiplier * 10) / 10;
-    const adjustedFat = Math.round(food.fatG * multiplier * 10) / 10;
-    const adjustedQuantity =
-      multiplier === 1 ? food.servingSize : `${multiplier}x (${food.servingSize})`;
+    let failed = false;
+    for (const item of staged) {
+      const res = await fetch("/api/food-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mealType: meal,
+          name: item.name,
+          quantity: item.quantity,
+          calories: item.calories,
+          protein: item.proteinG,
+          carbs: item.carbsG,
+          fat: item.fatG,
+        }),
+      });
+      if (!res.ok) failed = true;
+    }
 
-    const res = await fetch("/api/food-log", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        mealType: meal,
-        name: food.name,
-        quantity: adjustedQuantity,
-        calories: adjustedCalories,
-        protein: adjustedProtein,
-        carbs: adjustedCarbs,
-        fat: adjustedFat,
-      }),
-    });
-
-    setAddingId(null);
-    if (!res.ok) {
-      setError(`Couldn't add ${food.name}. Try again.`);
+    setCommitting(false);
+    if (failed) {
+      setError("Some items could not be logged. Please try again.");
       return;
     }
 
-    setAdded((prev) => [...prev, food.id]);
-    setSelectedFood(null);
-    setServingsMultiplier(1);
+    startTransition(() => {
+      router.push(`/meals/${meal}`);
+      router.refresh();
+    });
   }
 
   async function handleCreateCustomFood(e: React.FormEvent) {
@@ -193,7 +306,7 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
       fatG: created.fatG,
     };
 
-    setResults((prev) => [newFood, ...prev]);
+    setCreatedFoods((prev) => [newFood, ...prev]);
     setShowCustomModal(false);
     setCustomName("");
     setCustomServing("");
@@ -202,8 +315,9 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
     setCustomCarbs("");
     setCustomFat("");
 
-    // Auto-prompt portion log for the newly created food
-    setSelectedFood(newFood);
+    // Offer the portion adjuster for the newly created food.
+    setPortionFood(newFood);
+    setServingsMultiplier(1);
   }
 
   async function handleEstimateCustomNutrition() {
@@ -303,227 +417,190 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
     });
   }
 
+  function openCustomModal() {
+    setCustomEstimateError(null);
+    setCustomEstimateMissingKey(false);
+    setShowCustomModal(true);
+  }
+
   return (
     <div className="flex flex-col gap-5">
-      {/* Mode Switcher */}
-      <div className="flex rounded-xl bg-zinc-100 p-1 dark:bg-zinc-800/80">
-        <button
-          type="button"
-          onClick={() => setMode("search")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-all ${
-            mode === "search"
-              ? "bg-white text-zinc-900 shadow-xs dark:bg-zinc-900 dark:text-zinc-50"
-              : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-          }`}
-        >
-          <Search className="h-4 w-4" strokeWidth={2} aria-hidden />
-          Search Foods
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setMode("ai")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-all ${
-            mode === "ai"
-              ? "bg-white text-emerald-600 shadow-xs dark:bg-zinc-900 dark:text-emerald-400"
-              : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-          }`}
-        >
-          <Sparkles className="h-4 w-4" strokeWidth={2} aria-hidden />
-          AI Natural Log
-        </button>
+      {/* Meal selector */}
+      <div className="flex rounded-full bg-sand-200/80 p-1">
+        {mealOptions.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => setMeal(option.id)}
+            className={`flex-1 rounded-full py-2 text-sm transition-colors ${
+              meal === option.id
+                ? "bg-white font-semibold text-forest-900 shadow-sm"
+                : "font-medium text-sand-600 hover:text-forest-800"
+            }`}
+          >
+            {option.name}
+          </button>
+        ))}
       </div>
 
-      {/* Meal Selection Chips */}
-      <div>
-        <label className="mb-1.5 block text-xs font-medium text-zinc-500 dark:text-zinc-400">
-          Target meal
-        </label>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {mealOptions.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => setMeal(option.id)}
-              className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                meal === option.id
-                  ? "bg-emerald-600 text-white"
-                  : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-              }`}
-            >
-              <MealIcon meal={option.id} className="h-3.5 w-3.5" />
-              {option.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Mode A: Food Search */}
-      {mode === "search" && (
+      {mode === "search" ? (
         <div className="flex flex-col gap-4">
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-zinc-400"
-              strokeWidth={2}
-              aria-hidden
-            />
+          {/* Search bar */}
+          <div className="flex items-center gap-2 rounded-2xl bg-white py-1.5 pl-4 pr-1.5 shadow-card">
+            <Search className="h-5 w-5 shrink-0 text-sand-400" strokeWidth={2} aria-hidden />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search USDA database & custom foods..."
-              className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-9 pr-8 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-400 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+              placeholder="Search foods, brands, meals"
+              className="min-w-0 flex-1 bg-transparent py-2 text-sm text-forest-900 placeholder:text-sand-400 focus:outline-none"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                aria-label="Clear search"
+                className="shrink-0 text-sand-400 hover:text-sand-600"
               >
                 <X className="h-4 w-4" strokeWidth={2} aria-hidden />
               </button>
             )}
+            <button
+              type="button"
+              title="Barcode scanning is coming soon"
+              aria-label="Scan barcode (coming soon)"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-forest-800 text-forest-100 transition-colors hover:bg-forest-900"
+            >
+              <ScanBarcode className="h-5.5 w-5.5" strokeWidth={1.75} aria-hidden />
+            </button>
+          </div>
+
+          {/* Quick actions */}
+          <div className="grid grid-cols-3 gap-3">
+            <ActionTile
+              icon={Camera}
+              label="Snap photo"
+              title="Photo meal logging is coming soon"
+            />
+            <ActionTile icon={Zap} label="Quick add" onClick={() => setMode("ai")} />
+            <ActionTile icon={Soup} label="My meals" title="Saved meals are coming soon" />
           </div>
 
           {error && (
-            <p className="text-sm font-medium" style={{ color: "#d03b3b" }}>
-              {error}
-            </p>
+            <p className="text-sm font-medium text-coral-700">{error}</p>
           )}
 
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                {searching
-                  ? "Searching..."
-                  : query
-                  ? `Results for "${query}"`
-                  : "Frequent & custom foods"}
-              </p>
+          <section>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="truncate font-display text-xl font-bold text-forest-900">
+                {query.trim() ? `Results for “${query.trim()}”` : "Recent & frequent"}
+              </h2>
               <button
                 type="button"
-                onClick={() => {
-                  setCustomEstimateError(null);
-                  setCustomEstimateMissingKey(false);
-                  setShowCustomModal(true);
-                }}
-                className="flex items-center gap-0.5 text-xs font-medium text-emerald-600 hover:underline dark:text-emerald-400"
+                onClick={openCustomModal}
+                className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-forest-700"
               >
-                <Plus className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
-                New custom food
+                <Plus className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                New
               </button>
             </div>
 
-            <ul className="flex flex-col divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white shadow-sm dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
-              {results.map((food) => {
-                const isAdded = added.includes(food.id);
+            <div className="card divide-y divide-sand-100 overflow-hidden">
+              {displayFoods.map((food) => {
+                const added = isStaged(food.id);
                 return (
-                  <li
-                    key={food.id}
-                    className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30"
-                  >
-                    <div
-                      className="min-w-0 flex-1 cursor-pointer"
+                  <div key={food.id} className="flex items-center gap-3 px-4 py-3.5">
+                    <button
+                      type="button"
                       onClick={() => {
-                        setSelectedFood(food);
+                        setPortionFood(food);
                         setServingsMultiplier(1);
                       }}
+                      className="min-w-0 flex-1 text-left"
                     >
-                      <div className="flex items-center gap-1.5">
-                        <p className="truncate font-medium text-zinc-900 dark:text-zinc-50">
-                          {food.name}
-                        </p>
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate font-semibold text-forest-900">{food.name}</span>
                         {food.source === "custom" && (
-                          <span className="shrink-0 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
+                          <span className="shrink-0 rounded-md bg-forest-50 px-1.5 py-0.5 text-[10px] font-semibold text-forest-700">
                             Custom
                           </span>
                         )}
                         {food.brandOwner && (
-                          <span className="shrink-0 truncate text-[10px] text-zinc-400">
+                          <span className="shrink-0 truncate text-[10px] text-sand-400">
                             · {food.brandOwner}
                           </span>
                         )}
-                      </div>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {food.servingSize} · P {food.proteinG}g · C {food.carbsG}g · F {food.fatG}g
-                      </p>
-                    </div>
+                      </span>
+                      <span className="mt-0.5 block truncate text-sm text-sand-500">
+                        {food.servingSize} · {food.calories} kcal · {Math.round(food.proteinG)}P{" "}
+                        {Math.round(food.carbsG)}C {Math.round(food.fatG)}F
+                      </span>
+                    </button>
 
-                    <div className="flex items-center gap-2">
-                      <p className="shrink-0 font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-                        {food.calories} <span className="text-xs font-normal text-zinc-400">kcal</span>
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedFood(food);
-                          setServingsMultiplier(1);
-                        }}
-                        disabled={isAdded || addingId === food.id}
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-medium transition-colors ${
-                          isAdded
-                            ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400"
-                            : "bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
-                        }`}
-                        aria-label={isAdded ? `${food.name} added` : `Add ${food.name}`}
-                      >
-                        {isAdded ? (
-                          <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-                        ) : (
-                          <Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-                        )}
-                      </button>
-                    </div>
-                  </li>
+                    <button
+                      type="button"
+                      onClick={() => (added ? unstageFood(food.id) : stageFood(food))}
+                      aria-label={added ? `Remove ${food.name}` : `Add ${food.name}`}
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
+                        added
+                          ? "bg-forest-700 text-white"
+                          : "bg-forest-100 text-forest-700 hover:bg-forest-200"
+                      }`}
+                    >
+                      {added ? (
+                        <Check className="h-5 w-5" strokeWidth={2.5} aria-hidden />
+                      ) : (
+                        <Plus className="h-5 w-5" strokeWidth={2.5} aria-hidden />
+                      )}
+                    </button>
+                  </div>
                 );
               })}
 
-              {!searching && results.length === 0 && (
-                <li className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                  {query
-                    ? "No foods found matching your search. Create it as a custom food below!"
-                    : "No foods found. Type to search or create a custom food."}
-                </li>
+              {searching && (
+                <div className="flex items-center gap-2 px-4 py-6 text-sm text-sand-500">
+                  <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
+                  Searching…
+                </div>
               )}
-            </ul>
-          </div>
 
+              {!searching && displayFoods.length === 0 && (
+                <div className="px-4 py-8 text-center text-sm text-sand-500">
+                  {query.trim()
+                    ? "No foods found. Create it as a custom food below."
+                    : "No recent foods yet. Search the database or create a custom food."}
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={openCustomModal}
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-sand-300 py-3 text-sm font-medium text-sand-600 transition-colors hover:border-forest-400 hover:text-forest-700"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+              Create custom food
+            </button>
+          </section>
+        </div>
+      ) : (
+        /* AI Quick add */
+        <div className="flex flex-col gap-4">
           <button
             type="button"
-            onClick={() => {
-              setCustomEstimateError(null);
-              setCustomEstimateMissingKey(false);
-              setShowCustomModal(true);
-            }}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-600 transition-colors hover:border-emerald-400 hover:text-emerald-600 dark:border-zinc-700 dark:text-zinc-400"
+            onClick={() => setMode("search")}
+            className="flex w-fit items-center gap-1 text-sm font-semibold text-forest-700"
           >
-            <Plus className="h-4 w-4" strokeWidth={2.25} aria-hidden />
-            Create custom food
+            <ArrowLeft className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+            Back to search
           </button>
 
-          <Link
-            href={`/meals/${meal}`}
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-medium text-white transition-colors hover:bg-emerald-700"
-          >
-            <Check className="h-4 w-4" strokeWidth={2.25} aria-hidden />
-            Done adding
-          </Link>
-        </div>
-      )}
-
-      {/* Mode B: AI Natural Language Logging */}
-      {mode === "ai" && (
-        <div className="flex flex-col gap-4">
-          <form
-            onSubmit={handleAiParse}
-            className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
-          >
+          <form onSubmit={handleAiParse} className="card flex flex-col gap-3 p-5">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-900 dark:text-zinc-50">
+              <label className="mb-1 block text-sm font-semibold text-forest-900">
                 Describe your meal
               </label>
-              <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="mb-2 text-xs text-sand-500">
                 Mention ingredients, portion sizes, or restaurant meals.
               </p>
               <textarea
@@ -532,17 +609,17 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
                 value={aiPrompt}
                 onChange={(e) => setAiPrompt(e.target.value)}
                 placeholder="e.g. 2 scrambled eggs, 2 slices turkey bacon, 1 piece sourdough toast with butter, and a cup of black coffee"
-                className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-400 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+                className="w-full rounded-xl border border-sand-200 bg-white p-3 text-sm text-forest-900 placeholder:text-sand-400 focus:border-forest-500 focus:outline-none"
               />
             </div>
 
             {aiError && (
-              <div className="rounded-xl bg-red-50 p-3 text-xs text-red-700 dark:bg-red-950/40 dark:text-red-400">
-                <p className="font-medium">{aiError}</p>
+              <div className="rounded-xl bg-coral-50 p-3 text-xs text-coral-800">
+                <p className="font-semibold">{aiError}</p>
                 {aiMissingKey && (
                   <Link
                     href="/profile"
-                    className="mt-1.5 inline-block font-semibold underline hover:text-red-800 dark:hover:text-red-300"
+                    className="mt-1.5 inline-block font-semibold underline hover:text-coral-900"
                   >
                     Open Profile Settings to add API Key →
                   </Link>
@@ -553,53 +630,52 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
             <button
               type="submit"
               disabled={aiLoading || !aiPrompt.trim()}
-              className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+              className="flex items-center justify-center gap-2 rounded-xl bg-forest-700 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-forest-800 disabled:opacity-60"
             >
               {aiLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
-                  Analyzing with AI...
+                  Analyzing with AI…
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" strokeWidth={2.25} aria-hidden />
-                  Parse Meal with AI
+                  Parse meal with AI
                 </>
               )}
             </button>
           </form>
 
-          {/* AI Parsed Results Review */}
           {aiParsedItems.length > 0 && (
-            <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="card flex flex-col gap-3 p-5">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">
-                  Estimated Items ({aiParsedItems.length})
+                <h3 className="font-display text-lg font-bold text-forest-900">
+                  Estimated items ({aiParsedItems.length})
                 </h3>
-                <span className="text-xs text-zinc-500">
-                  {aiParsedItems.reduce((s, i) => s + i.calories, 0)} kcal total
+                <span className="text-xs text-sand-500">
+                  {aiParsedItems.reduce((sum, item) => sum + item.calories, 0)} kcal total
                 </span>
               </div>
 
-              <div className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800">
+              <div className="flex flex-col divide-y divide-sand-100">
                 {aiParsedItems.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-2.5 text-sm">
+                  <div key={idx} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-zinc-900 dark:text-zinc-50">{item.name}</p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {item.quantity} · P {item.proteinG}g · C {item.carbsG}g · F {item.fatG}g
+                      <p className="font-semibold text-forest-900">{item.name}</p>
+                      <p className="text-xs text-sand-500">
+                        {item.quantity} · {Math.round(item.proteinG)}P {Math.round(item.carbsG)}C{" "}
+                        {Math.round(item.fatG)}F
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-                        {item.calories} <span className="text-xs font-normal text-zinc-400">kcal</span>
+                      <span className="font-display font-bold tabular-nums text-forest-900">
+                        {item.calories}
+                        <span className="ml-1 text-xs font-medium text-sand-500">kcal</span>
                       </span>
                       <button
                         type="button"
-                        onClick={() =>
-                          setAiParsedItems((prev) => prev.filter((_, i) => i !== idx))
-                        }
-                        className="text-zinc-400 hover:text-red-500"
+                        onClick={() => setAiParsedItems((prev) => prev.filter((_, i) => i !== idx))}
+                        className="text-sand-400 hover:text-coral-600"
                         title="Remove item"
                       >
                         <X className="h-4 w-4" strokeWidth={2} aria-hidden />
@@ -613,17 +689,17 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
                 type="button"
                 onClick={handleAiLogAll}
                 disabled={aiLogging}
-                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-3 text-center text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+                className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl bg-forest-700 py-3 text-sm font-semibold text-white transition-colors hover:bg-forest-800 disabled:opacity-60"
               >
                 {aiLogging ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
-                    Logging items...
+                    Logging items…
                   </>
                 ) : (
                   <>
                     <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-                    Log all {aiParsedItems.length} items to {meal}
+                    Log all {aiParsedItems.length} items to {mealName}
                   </>
                 )}
               </button>
@@ -632,37 +708,62 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
         </div>
       )}
 
-      {/* Portion Multiplier Modal */}
-      {selectedFood && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mb-3 flex items-start justify-between">
-              <div>
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">
-                  {selectedFood.name}
+      {/* Pending cart */}
+      {staged.length > 0 && (
+        <div className="fixed inset-x-0 bottom-[68px] z-30 px-5">
+          <div className="mx-auto flex max-w-md items-center justify-between gap-3 rounded-3xl bg-forest-900 p-2 pl-5 shadow-lg">
+            <div className="min-w-0">
+              <p className="truncate text-xs text-forest-200">
+                {mealName} · {staged.length} item{staged.length === 1 ? "" : "s"}
+              </p>
+              <p className="font-display text-xl font-bold tabular-nums text-white">
+                {cartCalories}
+                <span className="ml-1 text-xs font-medium text-forest-200">kcal</span>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleCommit}
+              disabled={committing}
+              className="flex shrink-0 items-center gap-1.5 rounded-full bg-coral-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-coral-700 disabled:opacity-70"
+            >
+              {committing && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />}
+              Add to log
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Portion modal */}
+      {portionFood && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-xs sm:items-center">
+          <div className="w-full max-w-sm rounded-card bg-white p-5 shadow-xl">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="truncate font-display text-lg font-bold text-forest-900">
+                  {portionFood.name}
                 </h3>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Base portion: {selectedFood.servingSize}
-                </p>
+                <p className="text-xs text-sand-500">Base portion: {portionFood.servingSize}</p>
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedFood(null)}
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                onClick={() => setPortionFood(null)}
+                className="text-sand-400 hover:text-sand-600"
+                aria-label="Close"
               >
                 <X className="h-5 w-5" strokeWidth={2} aria-hidden />
               </button>
             </div>
 
-            <div className="my-4 rounded-xl bg-zinc-50 p-3 text-center dark:bg-zinc-800/60">
-              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                {Math.round(selectedFood.calories * servingsMultiplier)}{" "}
-                <span className="text-sm font-normal text-zinc-400">kcal</span>
+            <div className="my-4 rounded-tile bg-sand-50 p-4 text-center">
+              <p className="font-display text-3xl font-bold tabular-nums text-forest-900">
+                {Math.round(portionFood.calories * servingsMultiplier)}
+                <span className="ml-1 text-sm font-medium text-sand-500">kcal</span>
               </p>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                P {Math.round(selectedFood.proteinG * servingsMultiplier * 10) / 10}g · C{" "}
-                {Math.round(selectedFood.carbsG * servingsMultiplier * 10) / 10}g · F{" "}
-                {Math.round(selectedFood.fatG * servingsMultiplier * 10) / 10}g
+              <p className="mt-1 text-xs text-sand-500">
+                {round1(portionFood.proteinG * servingsMultiplier)}P ·{" "}
+                {round1(portionFood.carbsG * servingsMultiplier)}C ·{" "}
+                {round1(portionFood.fatG * servingsMultiplier)}F
               </p>
             </div>
 
@@ -674,13 +775,13 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
                     key={num}
                     type="button"
                     onClick={() => setServingsMultiplier(num)}
-                    className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${
+                    className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors ${
                       servingsMultiplier === num
-                        ? "bg-emerald-600 text-white"
-                        : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300"
+                        ? "bg-forest-700 text-white"
+                        : "bg-sand-100 text-sand-600 hover:bg-sand-200"
                     }`}
                   >
-                    {num}x
+                    {num}×
                   </button>
                 ))}
               </div>
@@ -695,43 +796,46 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
                   onChange={(e) => setServingsMultiplier(Math.max(0.1, Number(e.target.value) || 1))}
                   className={inputClass}
                 />
-                <span className="text-xs text-zinc-400">servings</span>
+                <span className="text-xs text-sand-400">servings</span>
               </div>
             </div>
 
             <div className="mt-5 flex gap-2">
               <button
                 type="button"
-                onClick={() => setSelectedFood(null)}
-                className="w-1/3 rounded-xl border border-zinc-200 py-2.5 text-xs font-medium text-zinc-600 dark:border-zinc-800 dark:text-zinc-400"
+                onClick={() => setPortionFood(null)}
+                className="w-1/3 rounded-xl border border-sand-200 py-2.5 text-xs font-semibold text-sand-600"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={() => handleLogFood(selectedFood, servingsMultiplier)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700"
+                onClick={() => {
+                  stageFood(portionFood, servingsMultiplier);
+                  setPortionFood(null);
+                  setServingsMultiplier(1);
+                }}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-forest-700 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-forest-800"
               >
                 <Plus className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
-                Add to {meal}
+                Add to {mealName}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Create Custom Food Modal */}
+      {/* Create custom food modal */}
       {showCustomModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-xs sm:items-center">
+          <div className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-card bg-white p-5 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">
-                Create Custom Food
-              </h3>
+              <h3 className="font-display text-lg font-bold text-forest-900">Create custom food</h3>
               <button
                 type="button"
                 onClick={() => setShowCustomModal(false)}
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                className="text-sand-400 hover:text-sand-600"
+                aria-label="Close"
               >
                 <X className="h-5 w-5" strokeWidth={2} aria-hidden />
               </button>
@@ -739,7 +843,7 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
 
             <form onSubmit={handleCreateCustomFood} className="flex flex-col gap-3">
               <div>
-                <label className={labelClass}>Food Name *</label>
+                <label className={labelClass}>Food name *</label>
                 <input
                   type="text"
                   required
@@ -751,7 +855,7 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
               </div>
 
               <div>
-                <label className={labelClass}>Serving Size *</label>
+                <label className={labelClass}>Serving size *</label>
                 <input
                   type="text"
                   required
@@ -767,12 +871,12 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
                 onClick={handleEstimateCustomNutrition}
                 disabled={estimatingCustom || !customName.trim()}
                 title={!customName.trim() ? "Enter a food name first" : undefined}
-                className="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 py-2 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400"
+                className="flex items-center justify-center gap-2 rounded-xl border border-forest-200 bg-forest-50 py-2 text-xs font-semibold text-forest-700 transition-colors hover:bg-forest-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {estimatingCustom ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} aria-hidden />
-                    Estimating with AI...
+                    Estimating with AI…
                   </>
                 ) : (
                   <>
@@ -783,12 +887,12 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
               </button>
 
               {customEstimateError && (
-                <div className="rounded-xl bg-red-50 p-2.5 text-xs text-red-700 dark:bg-red-950/40 dark:text-red-400">
-                  <p className="font-medium">{customEstimateError}</p>
+                <div className="rounded-xl bg-coral-50 p-2.5 text-xs text-coral-800">
+                  <p className="font-semibold">{customEstimateError}</p>
                   {customEstimateMissingKey && (
                     <Link
                       href="/profile"
-                      className="mt-1 inline-block font-semibold underline hover:text-red-800 dark:hover:text-red-300"
+                      className="mt-1 inline-block font-semibold underline hover:text-coral-900"
                     >
                       Open Profile Settings to add API Key →
                     </Link>
@@ -850,34 +954,30 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
                 </div>
               </div>
 
-              {customError && (
-                <p className="text-xs font-medium" style={{ color: "#d03b3b" }}>
-                  {customError}
-                </p>
-              )}
+              {customError && <p className="text-xs font-semibold text-coral-700">{customError}</p>}
 
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShowCustomModal(false)}
-                  className="w-1/3 rounded-xl border border-zinc-200 py-2.5 text-xs font-medium text-zinc-600 dark:border-zinc-800 dark:text-zinc-400"
+                  className="w-1/3 rounded-xl border border-sand-200 py-2.5 text-xs font-semibold text-sand-600"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={savingCustom}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-forest-700 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-forest-800 disabled:opacity-60"
                 >
                   {savingCustom ? (
                     <>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} aria-hidden />
-                      Saving...
+                      Saving…
                     </>
                   ) : (
                     <>
                       <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
-                      Save Custom Food
+                      Save custom food
                     </>
                   )}
                 </button>

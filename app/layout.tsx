@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bricolage_Grotesque, DM_Sans } from "next/font/google";
 import { BottomNav } from "./_components/BottomNav";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
   subsets: ["latin"],
 });
 
@@ -22,9 +22,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${bricolage.variable} ${dmSans.variable} h-full`}
     >
-      <body className="flex min-h-full flex-col bg-zinc-50 dark:bg-black">
+      <body className="flex min-h-full flex-col bg-sand-100 font-sans text-forest-900 antialiased">
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
           <div className="flex-1">{children}</div>
           <BottomNav />

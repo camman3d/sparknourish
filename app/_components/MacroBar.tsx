@@ -1,8 +1,12 @@
 const COLORS = {
-  protein: "bg-sky-500",
-  carbs: "bg-amber-500",
-  fat: "bg-violet-500",
+  protein: "bg-forest-700",
+  carbs: "bg-coral-600",
+  fat: "bg-amber-500",
 };
+
+function formatGrams(grams: number) {
+  return `${Math.round(grams * 10) / 10}`;
+}
 
 export function MacroBar({
   label,
@@ -19,17 +23,15 @@ export function MacroBar({
 
   return (
     <div>
-      <div className="mb-1 flex items-baseline justify-between text-sm">
-        <span className="font-medium text-zinc-700 dark:text-zinc-300">{label}</span>
-        <span className="text-zinc-500 dark:text-zinc-400">
-          {grams}g{goalGrams ? ` / ${goalGrams}g` : ""}
-        </span>
-      </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-        <div
-          className={`h-full rounded-full ${COLORS[kind]}`}
-          style={{ width: `${pct}%` }}
-        />
+      <p className="text-sm text-sand-500">{label}</p>
+      <p className="mt-0.5 font-display text-lg font-bold tabular-nums text-forest-900">
+        {formatGrams(grams)}g
+        {goalGrams ? (
+          <span className="text-sm font-medium text-sand-400"> / {goalGrams}g</span>
+        ) : null}
+      </p>
+      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-sand-200">
+        <div className={`h-full rounded-full ${COLORS[kind]}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );

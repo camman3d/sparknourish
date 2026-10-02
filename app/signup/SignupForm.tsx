@@ -12,16 +12,14 @@ import {
 } from "../_lib/profile-options";
 
 const inputClass =
-  "w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-400 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50";
-const labelClass = "mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300";
+  "w-full rounded-xl border border-sand-200 bg-white px-3 py-2.5 text-sm text-forest-900 placeholder:text-sand-400 focus:border-forest-500 focus:outline-none";
+const labelClass = "mb-1.5 block text-sm font-medium text-sand-600";
 const primaryButton =
-  "flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60";
+  "flex w-full items-center justify-center gap-1.5 rounded-xl bg-forest-700 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-forest-800 disabled:opacity-60";
 
 function chipClass(selected: boolean) {
   return `whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-    selected
-      ? "bg-emerald-600 text-white"
-      : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+    selected ? "bg-forest-700 text-white" : "bg-sand-100 text-sand-600 hover:bg-sand-200"
   }`;
 }
 
@@ -87,21 +85,16 @@ export function SignupForm() {
     router.refresh();
   }
 
-  const errorText = error && (
-    <p className="text-sm font-medium" style={{ color: "#d03b3b" }}>
-      {error}
-    </p>
-  );
+  const errorText = error && <p className="text-sm font-medium text-coral-700">{error}</p>;
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Step {step} of 2</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-sand-400">
+        Step {step} of 2
+      </p>
 
       {step === 1 ? (
-        <form
-          onSubmit={handleContinue}
-          className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
-        >
+        <form onSubmit={handleContinue} className="card flex flex-col gap-4 p-5">
           <div>
             <label htmlFor="name" className={labelClass}>Name</label>
             <input
@@ -159,18 +152,15 @@ export function SignupForm() {
             <ChevronRight className="h-4 w-4" strokeWidth={2.25} aria-hidden />
           </button>
 
-          <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="text-center text-sm text-sand-500">
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-emerald-600 dark:text-emerald-400">
+            <Link href="/login" className="font-semibold text-forest-700">
               Log in
             </Link>
           </p>
         </form>
       ) : (
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
-        >
+        <form onSubmit={handleSubmit} className="card flex flex-col gap-4 p-5">
           <div>
             <span className={labelClass}>Gender</span>
             <div className="flex gap-2 overflow-x-auto pb-1">
@@ -268,7 +258,7 @@ export function SignupForm() {
                 setError(null);
                 setStep(1);
               }}
-              className="flex w-1/3 items-center justify-center gap-1.5 rounded-xl border border-zinc-200 py-2.5 text-sm font-medium text-zinc-600 dark:border-zinc-800 dark:text-zinc-300"
+              className="flex w-1/3 items-center justify-center gap-1.5 rounded-xl border border-sand-200 py-2.5 text-sm font-semibold text-sand-600"
             >
               <ChevronLeft className="h-4 w-4" strokeWidth={2.25} aria-hidden />
               Back
@@ -277,7 +267,7 @@ export function SignupForm() {
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
-                  Creating account...
+                  Creating account…
                 </>
               ) : (
                 <>
