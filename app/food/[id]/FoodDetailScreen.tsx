@@ -273,7 +273,7 @@ export function FoodDetailScreen({
         ))}
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 bg-sand-100/95 px-5 pb-6 pt-3 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 z-30 bg-sand-100/95 px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         <div className="mx-auto w-full max-w-md">
           {error && <p className="mb-2 text-center text-sm font-medium text-coral-700">{error}</p>}
           <button

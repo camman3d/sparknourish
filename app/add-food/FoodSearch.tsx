@@ -741,7 +741,7 @@ export function FoodSearch({
 
       {/* Pending cart */}
       {staged.length > 0 && (
-        <div className="fixed inset-x-0 bottom-[68px] z-30 px-5">
+        <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 px-5">
           <div className="mx-auto flex max-w-md items-center justify-between gap-3 rounded-3xl bg-forest-900 p-2 pl-5 shadow-lg">
             <div className="min-w-0">
               <p className="truncate text-xs text-forest-200">

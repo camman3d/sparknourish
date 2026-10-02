@@ -122,7 +122,7 @@ export default async function HomePage(props: PageProps<"/">) {
         </div>
       </section>
 
-      <div className="flex gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <WaterTracker consumedOz={water.totalOz} goalOz={user.waterGoalOz} date={selectedKey} />
         <MoveTile minutes={movement.minutes} goalMin={dayGoal} />
       </div>

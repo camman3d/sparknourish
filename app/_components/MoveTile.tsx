@@ -9,18 +9,20 @@ export function MoveTile({ minutes, goalMin }: { minutes: number; goalMin: numbe
   const pct = goalMin > 0 ? Math.min(100, Math.round((minutes / goalMin) * 100)) : minutes > 0 ? 100 : 0;
 
   return (
-    <section className="tile flex flex-1 flex-col p-4">
-      <div className="flex items-center gap-2.5">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-plum-100 text-plum-600">
-          <Activity className="h-5 w-5" strokeWidth={2} aria-hidden />
-        </span>
-        <Link href="/move" className="min-w-0 flex-1 font-medium text-forest-900">
-          Move
-        </Link>
+    <section className="tile flex min-w-0 flex-1 flex-col p-4">
+      <div className="flex items-center justify-between gap-1.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-plum-100 text-plum-600">
+            <Activity className="h-4 w-4" strokeWidth={2} aria-hidden />
+          </span>
+          <Link href="/move" className="truncate text-sm font-medium text-forest-900">
+            Move
+          </Link>
+        </div>
         <Link
           href="/move/log"
           aria-label="Log movement"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-plum-100 text-plum-700 transition-colors hover:bg-plum-200"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-plum-100 text-plum-700 transition-colors hover:bg-plum-200"
         >
           <Plus className="h-5 w-5" strokeWidth={2.5} aria-hidden />
         </Link>
