@@ -19,7 +19,7 @@ export default async function LoginPage() {
           width={720}
           height={341}
           priority
-          className="h-16 w-auto"
+          className="h-16 w-auto self-center"
         />
         <div>
           <h1 className="font-display text-3xl font-bold text-forest-900">Welcome back</h1>
