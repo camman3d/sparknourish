@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
 import { MealItemList } from "./MealItemList";
+import { MealIcon } from "../../_components/MealIcon";
 import { mealOptions, type MealId } from "../../_lib/mock-data";
 import { getMealEntries } from "../../../db/queries";
 import { requireUser } from "../../_lib/auth";
@@ -33,13 +35,16 @@ export default async function MealSummaryPage(props: PageProps<"/meals/[mealId]"
           aria-label="Back to dashboard"
           className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4.5 w-4.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="m15 18-6-6 6-6" />
-          </svg>
+          <ChevronLeft className="h-4.5 w-4.5" strokeWidth={2} aria-hidden />
         </Link>
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{meal.name}</h1>
-          {time && <p className="text-sm text-zinc-500 dark:text-zinc-400">{time}</p>}
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+            <MealIcon meal={meal.id} className="h-4.5 w-4.5" />
+          </span>
+          <div>
+            <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{meal.name}</h1>
+            {time && <p className="text-sm text-zinc-500 dark:text-zinc-400">{time}</p>}
+          </div>
         </div>
       </header>
 

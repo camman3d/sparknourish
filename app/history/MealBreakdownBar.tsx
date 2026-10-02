@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MealIcon } from "../_components/MealIcon";
 import type { MealId } from "../_lib/mock-data";
 
 const SEGMENTS: { id: MealId; name: string; light: string; dark: string }[] = [
@@ -57,10 +58,9 @@ export function MealBreakdownBar({ breakdown }: { breakdown: Record<MealId, numb
       <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
         {SEGMENTS.map((segment) => (
           <li key={segment.id} className="flex items-center gap-2">
-            <span
-              className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
-              style={{ backgroundColor: `var(--seg-${segment.id})` }}
-            />
+            <span className="shrink-0" style={{ color: `var(--seg-${segment.id})` }}>
+              <MealIcon meal={segment.id} className="h-4 w-4" />
+            </span>
             <span className="text-zinc-600 dark:text-zinc-300">{segment.name}</span>
             <span className="ml-auto tabular-nums text-zinc-500 dark:text-zinc-400">
               {breakdown[segment.id].toLocaleString()}

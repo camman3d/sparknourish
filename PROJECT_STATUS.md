@@ -14,6 +14,8 @@ Sparkwell Nutrition is a mobile-first web application designed for daily nutriti
   * **Unified Food Search & Serving Multiplier:** Debounced live search across custom foods and USDA items with real-time serving scaling (0.5x, 1x, 1.5x, 2x, custom).
   * **Food Log Edit & Delete:** Full deletion and editing capabilities on meal detail pages (`/meals/[mealId]`), updating totals and macros in real-time.
   * **AI Natural Language Meal Logging:** OpenRouter-powered extraction (`/api/ai/parse-meal`) parsing free-form meal text into structured foods, portions, and macros with one-tap logging.
+  * **AI Nutrition Estimation for Custom Foods:** "+ Create custom food" modal can estimate calories, protein, carbs, and fat from the food name/portion via `/api/ai/estimate-food`, with one click filling the form fields.
+  * **App-wide Iconography:** `lucide-react` integrated across navigation, meal cards, and action buttons, with a shared `MealIcon` mapping breakfast/lunch/dinner/snacks to distinct icons.
 
 ---
 
@@ -24,6 +26,7 @@ Sparkwell Nutrition is a mobile-first web application designed for daily nutriti
 | **Framework** | Next.js 16.3.6 (React 19.2.8, App Router with Server Components) |
 | **Database & ORM** | PostgreSQL with Drizzle ORM (`drizzle-orm` v0.45.3, `drizzle-kit` v0.31.11, `postgres` v3.4.9) |
 | **Styling** | Tailwind CSS v4 (`@tailwindcss/postcss`) |
+| **Icons** | `lucide-react` v1.50 (named imports tree-shaken via Next.js `optimizePackageImports`) |
 | **Authentication** | Custom stateless HMAC-SHA256 session token (`app/_lib/session-token.ts`), HTTP-only cookies |
 | **AI Integration** | OpenRouter Chat Completion API (`app/api/ai/parse-meal/route.ts`) |
 | **USDA Data Importer** | Streaming zip reader (`yauzl`, `csv-parse`), `scripts/import-usda.ts` |
@@ -40,7 +43,8 @@ Sparkwell Nutrition is a mobile-first web application designed for daily nutriti
 | :--- | :---: | :--- |
 | **USDA FoodData Central** |  Implemented | `usda_foods` table with 14,194 foods imported from USDA FNDDS, SR Legacy, Foundation, and top branded foods. Importer script (`npm run db:import-usda`) streams directly from zip archive. |
 | **Custom Foods Catalog** |  Implemented | `custom_foods` table with cascade delete on `user_id`. Indexed by user and food name. |
-| **Custom Food Creation UI** |  Implemented | Modal in `app/add-food/FoodSearch.tsx` supporting food name, serving size, calories, protein, carbs, and fat. |
+| **Custom Food Creation UI** |  Implemented | Modal in `app/add-food/FoodSearch.tsx` supporting food name, serving size, calories, protein, carbs, and fat. Includes an AI button that estimates macros from the food name. |
+| **AI Nutrition Estimation** |  Implemented | "✨ Estimate nutrition from name" button in the custom food modal calls `POST /api/ai/estimate-food` (OpenRouter) to fill calories, protein, carbs, fat, and serving size. |
 | **Unified Food Search** |  Implemented | `GET /api/foods/search?q=...` searches both user's custom foods (with emerald "Custom" badge) and USDA items. |
 | **Serving Size Multiplier** |  Implemented | Interactive modal on `/add-food` allowing portion adjustment (0.5x, 1x, 1.5x, 2x, or custom numeric multiplier) with instant macro recalculation. |
 | **Barcode Scanner** | ❌ Not Implemented | UPC/EAN barcode scanning via mobile camera. |
@@ -109,6 +113,14 @@ Sparkwell Nutrition is a mobile-first web application designed for daily nutriti
 | **Profile Settings** |  Implemented | Basic info editing, OpenRouter API key management, password change, and logout. |
 | **Dynamic Goal Recalculation** | ⚠️ Partial | When user changes weight or activity level in Profile, daily calorie and macro goals are not automatically updated. |
 | **Password Reset** | ❌ Not Implemented | No "Forgot Password" or recovery email flow exists. |
+
+### G. Design System & Iconography
+
+| Feature | Status | Implementation Details |
+| :--- | :---: | :--- |
+| **Icon Library** | ✅ Implemented | `lucide-react` added as a dependency and adopted app-wide, replacing hand-rolled inline SVGs. Named imports are automatically tree-shaken by Next.js (`optimizePackageImports`). |
+| **Meal-Type Icons** | ✅ Implemented | Shared `app/_components/MealIcon.tsx` maps `breakfast → Coffee`, `lunch → Sandwich`, `dinner → UtensilsCrossed`, and `snacks → Cookie`. Used on dashboard meal cards, the meal detail header, the Add Food meal-selector chips, and the history meal-breakdown legend. |
+| **Button & Action Icons** | ✅ Implemented | Navigation (`Home`, `PlusCircle`, `ChartColumn`), back (`ChevronLeft`), add (`Plus`/`Check`), edit (`Pencil`), delete (`Trash2`), close (`X`), search (`Search`), AI (`Sparkles`), loading spinners (`Loader2`), show/hide API key (`Eye`/`EyeOff`), and auth/logout (`LogIn`, `UserPlus`, `LogOut`) actions. |
 
 ---
 
@@ -199,6 +211,7 @@ erDiagram
 | `/api/custom-foods/[id]` | `DELETE`|  Yes | Deletes a custom food item owned by the user. |
 | `/api/foods/search` | `GET` |  Yes | Searches across custom foods and USDA foods with `q` query parameter. |
 | `/api/ai/parse-meal` | `POST` |  Yes | Parses natural language meal text into structured foods & macros using OpenRouter. |
+| `/api/ai/estimate-food` | `POST` |  Yes | Estimates calories, protein, carbs, and fat for a single named food using OpenRouter. |
 
 ---
 

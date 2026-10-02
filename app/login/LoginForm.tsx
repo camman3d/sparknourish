@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Loader2, LogIn } from "lucide-react";
 
 const inputClass =
   "w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-400 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50";
@@ -73,9 +74,19 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
       >
-        {submitting ? "Logging in..." : "Log in"}
+        {submitting ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
+            Logging in...
+          </>
+        ) : (
+          <>
+            <LogIn className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+            Log in
+          </>
+        )}
       </button>
 
       <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">

@@ -2,58 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ChartColumn, Home, PlusCircle, type LucideIcon } from "lucide-react";
 
-const navItems = [
-  {
-    href: "/",
-    label: "Dashboard",
-    icon: (active: boolean) => (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={active ? 2.25 : 1.75}
-        className="h-6 w-6"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M3 11.5 12 4l9 7.5M5 10v9a1 1 0 0 0 1 1h4v-5a2 2 0 1 1 4 0v5h4a1 1 0 0 0 1-1v-9"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "/add-food",
-    label: "Add Food",
-    icon: (active: boolean) => (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={active ? 2.25 : 1.75}
-        className="h-6 w-6"
-      >
-        <circle cx="12" cy="12" r="9" />
-        <path strokeLinecap="round" d="M12 8v8M8 12h8" />
-      </svg>
-    ),
-  },
-  {
-    href: "/history",
-    label: "History",
-    icon: (active: boolean) => (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={active ? 2.25 : 1.75}
-        className="h-6 w-6"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 19V10M10 19V5M16 19v-7M22 19H2" />
-      </svg>
-    ),
-  },
+const navItems: { href: string; label: string; Icon: LucideIcon }[] = [
+  { href: "/", label: "Dashboard", Icon: Home },
+  { href: "/add-food", label: "Add Food", Icon: PlusCircle },
+  { href: "/history", label: "History", Icon: ChartColumn },
 ];
 
 export function BottomNav() {
@@ -65,6 +19,7 @@ export function BottomNav() {
       <div className="mx-auto flex max-w-md items-stretch justify-around">
         {navItems.map((item) => {
           const active = pathname === item.href;
+          const Icon = item.Icon;
           return (
             <Link
               key={item.href}
@@ -75,7 +30,7 @@ export function BottomNav() {
                   : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
               }`}
             >
-              {item.icon(active)}
+              <Icon className="h-6 w-6" strokeWidth={active ? 2.25 : 1.75} aria-hidden />
               {item.label}
             </Link>
           );

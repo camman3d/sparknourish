@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Plus, UserRound } from "lucide-react";
 import { MacroBar } from "./_components/MacroBar";
+import { MealIcon } from "./_components/MealIcon";
 import { getTodayMeals } from "../db/queries";
 import { requireUser } from "./_lib/auth";
 
@@ -38,10 +40,7 @@ export default async function DashboardPage() {
           aria-label="Profile"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-4.5 w-4.5">
-            <circle cx="12" cy="8" r="3.5" />
-            <path strokeLinecap="round" d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" />
-          </svg>
+          <UserRound className="h-4.5 w-4.5" strokeWidth={1.75} aria-hidden />
         </Link>
       </header>
 
@@ -80,9 +79,10 @@ export default async function DashboardPage() {
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Today&apos;s meals</h2>
           <Link
             href="/add-food"
-            className="text-sm font-medium text-emerald-600 dark:text-emerald-400"
+            className="flex items-center gap-1 text-sm font-medium text-emerald-600 dark:text-emerald-400"
           >
-            + Add food
+            <Plus className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+            Add food
           </Link>
         </div>
 
@@ -93,13 +93,18 @@ export default async function DashboardPage() {
               href={`/meals/${meal.id}`}
               className="flex items-center justify-between rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition-colors hover:border-emerald-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-emerald-700"
             >
-              <div>
-                <p className="font-medium text-zinc-900 dark:text-zinc-50">{meal.name}</p>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {meal.items.length
-                    ? `${meal.items.length} item${meal.items.length === 1 ? "" : "s"} · ${meal.time}`
-                    : "Nothing logged yet"}
-                </p>
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                  <MealIcon meal={meal.id} className="h-4.5 w-4.5" />
+                </span>
+                <div>
+                  <p className="font-medium text-zinc-900 dark:text-zinc-50">{meal.name}</p>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                    {meal.items.length
+                      ? `${meal.items.length} item${meal.items.length === 1 ? "" : "s"} · ${meal.time}`
+                      : "Nothing logged yet"}
+                  </p>
+                </div>
               </div>
               <p className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
                 {meal.totals.calories} <span className="text-sm font-normal text-zinc-400">kcal</span>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Check, ChevronDown, Eye, EyeOff, Loader2, Lock, LogOut, Sparkles, UserRound } from "lucide-react";
 import {
   activityLevelOptions,
   genderOptions,
@@ -155,7 +156,10 @@ export function ProfileForm() {
   return (
     <div className="flex flex-col gap-5">
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="mb-4 font-semibold text-zinc-900 dark:text-zinc-50">Basic info</h2>
+        <h2 className="mb-4 flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-50">
+          <UserRound className="h-4.5 w-4.5 text-zinc-400" strokeWidth={1.75} aria-hidden />
+          Basic info
+        </h2>
 
         <div className="flex flex-col gap-4">
           <div>
@@ -268,14 +272,27 @@ export function ProfileForm() {
           type="button"
           onClick={handleSave}
           disabled={saveState === "saving"}
-          className="mt-5 w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+          className="mt-5 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
         >
-          {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Save changes"}
+          {saveState === "saving" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+              {saveState === "saved" ? "Saved" : "Save changes"}
+            </>
+          )}
         </button>
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="font-semibold text-zinc-900 dark:text-zinc-50">AI features</h2>
+        <h2 className="flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-50">
+          <Sparkles className="h-4.5 w-4.5 text-zinc-400" strokeWidth={1.75} aria-hidden />
+          AI features
+        </h2>
         <p className="mb-4 mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           Add an OpenRouter API key to unlock upcoming AI-powered features, like meal suggestions and
           smarter food logging.
@@ -297,14 +314,9 @@ export function ProfileForm() {
             className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
           >
             {showApiKey ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-4.5 w-4.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.4 5.5A10.8 10.8 0 0 1 12 5c5 0 8.5 3.5 10 7-.6 1.4-1.5 2.7-2.6 3.8M6.6 6.6C4.6 8 3 10 2 12c1.5 3.5 5 7 10 7 1 0 2-.1 2.9-.4" />
-              </svg>
+              <EyeOff className="h-4.5 w-4.5" strokeWidth={1.75} aria-hidden />
             ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-4.5 w-4.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2 12c1.5-3.5 5-7 10-7s8.5 3.5 10 7c-1.5 3.5-5 7-10 7s-8.5-3.5-10-7Z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
+              <Eye className="h-4.5 w-4.5" strokeWidth={1.75} aria-hidden />
             )}
           </button>
         </div>
@@ -313,9 +325,19 @@ export function ProfileForm() {
           type="button"
           onClick={handleSaveApiKey}
           disabled={apiKeySaveState === "saving"}
-          className="mt-4 w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+          className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
         >
-          {apiKeySaveState === "saving" ? "Saving..." : apiKeySaveState === "saved" ? "Saved" : "Save changes"}
+          {apiKeySaveState === "saving" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+              {apiKeySaveState === "saved" ? "Saved" : "Save changes"}
+            </>
+          )}
         </button>
       </section>
 
@@ -325,16 +347,15 @@ export function ProfileForm() {
           onClick={() => setPasswordOpen((prev) => !prev)}
           className="flex w-full items-center justify-between"
         >
-          <h2 className="font-semibold text-zinc-900 dark:text-zinc-50">Change password</h2>
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
+          <h2 className="flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-50">
+            <Lock className="h-4.5 w-4.5 text-zinc-400" strokeWidth={1.75} aria-hidden />
+            Change password
+          </h2>
+          <ChevronDown
             className={`h-4.5 w-4.5 text-zinc-400 transition-transform ${passwordOpen ? "rotate-180" : ""}`}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
-          </svg>
+            strokeWidth={2}
+            aria-hidden
+          />
         </button>
 
         {passwordOpen && (
@@ -382,9 +403,19 @@ export function ProfileForm() {
               type="button"
               onClick={handlePasswordSubmit}
               disabled={passwordSaving || !currentPassword || !newPassword || !confirmPassword}
-              className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
             >
-              {passwordSaving ? "Updating..." : "Update password"}
+              {passwordSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                  Update password
+                </>
+              )}
             </button>
           </div>
         )}
@@ -394,9 +425,19 @@ export function ProfileForm() {
         type="button"
         onClick={handleLogout}
         disabled={loggingOut}
-        className="w-full rounded-xl border border-dashed border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-500 transition-colors hover:border-red-300 hover:text-red-600 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-400"
+        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-500 transition-colors hover:border-red-300 hover:text-red-600 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-400"
       >
-        {loggingOut ? "Logging out..." : "Log out"}
+        {loggingOut ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
+            Logging out...
+          </>
+        ) : (
+          <>
+            <LogOut className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+            Log out
+          </>
+        )}
       </button>
     </div>
   );

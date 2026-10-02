@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ChevronLeft, ChevronRight, Loader2, UserPlus } from "lucide-react";
 import {
   activityLevelOptions,
   genderOptions,
@@ -14,7 +15,7 @@ const inputClass =
   "w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-400 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50";
 const labelClass = "mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300";
 const primaryButton =
-  "w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60";
+  "flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60";
 
 function chipClass(selected: boolean) {
   return `whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
@@ -155,6 +156,7 @@ export function SignupForm() {
 
           <button type="submit" className={primaryButton}>
             Continue
+            <ChevronRight className="h-4 w-4" strokeWidth={2.25} aria-hidden />
           </button>
 
           <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
@@ -266,12 +268,23 @@ export function SignupForm() {
                 setError(null);
                 setStep(1);
               }}
-              className="w-1/3 rounded-xl border border-zinc-200 py-2.5 text-sm font-medium text-zinc-600 dark:border-zinc-800 dark:text-zinc-300"
+              className="flex w-1/3 items-center justify-center gap-1.5 rounded-xl border border-zinc-200 py-2.5 text-sm font-medium text-zinc-600 dark:border-zinc-800 dark:text-zinc-300"
             >
+              <ChevronLeft className="h-4 w-4" strokeWidth={2.25} aria-hidden />
               Back
             </button>
             <button type="submit" disabled={submitting} className={`${primaryButton} flex-1`}>
-              {submitting ? "Creating account..." : "Create account"}
+              {submitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
+                  Creating account...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+                  Create account
+                </>
+              )}
             </button>
           </div>
         </form>

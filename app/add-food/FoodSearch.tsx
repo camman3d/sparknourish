@@ -3,6 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Check, Loader2, Plus, Search, Sparkles, X } from "lucide-react";
+import { MealIcon } from "../_components/MealIcon";
 import { mealOptions, type MealId } from "../_lib/mock-data";
 import type { CustomFood, UsdaFood } from "../../db/schema";
 
@@ -56,6 +58,9 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
   const [customFat, setCustomFat] = useState("");
   const [savingCustom, setSavingCustom] = useState(false);
   const [customError, setCustomError] = useState<string | null>(null);
+  const [estimatingCustom, setEstimatingCustom] = useState(false);
+  const [customEstimateError, setCustomEstimateError] = useState<string | null>(null);
+  const [customEstimateMissingKey, setCustomEstimateMissingKey] = useState(false);
 
   // AI Meal Logging state
   const [aiPrompt, setAiPrompt] = useState("");
@@ -201,6 +206,38 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
     setSelectedFood(newFood);
   }
 
+  async function handleEstimateCustomNutrition() {
+    if (!customName.trim() || estimatingCustom) return;
+
+    setEstimatingCustom(true);
+    setCustomEstimateError(null);
+    setCustomEstimateMissingKey(false);
+
+    const res = await fetch("/api/ai/estimate-food", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: customName,
+        servingSize: customServing,
+      }),
+    });
+
+    setEstimatingCustom(false);
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      setCustomEstimateError(data.error || "Failed to estimate nutrition with AI.");
+      if (data.missingApiKey) setCustomEstimateMissingKey(true);
+      return;
+    }
+
+    if (data.calories != null) setCustomCalories(String(data.calories));
+    if (data.proteinG != null) setCustomProtein(String(data.proteinG));
+    if (data.carbsG != null) setCustomCarbs(String(data.carbsG));
+    if (data.fatG != null) setCustomFat(String(data.fatG));
+    if (data.servingSize && !customServing.trim()) setCustomServing(data.servingSize);
+  }
+
   async function handleAiParse(e: React.FormEvent) {
     e.preventDefault();
     if (!aiPrompt.trim()) return;
@@ -279,10 +316,7 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
               : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
           }`}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4">
-            <circle cx="11" cy="11" r="7" />
-            <path strokeLinecap="round" d="m20 20-3.5-3.5" />
-          </svg>
+          <Search className="h-4 w-4" strokeWidth={2} aria-hidden />
           Search Foods
         </button>
 
@@ -295,10 +329,8 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
               : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
           }`}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
-          </svg>
-          ✨ AI Natural Log
+          <Sparkles className="h-4 w-4" strokeWidth={2} aria-hidden />
+          AI Natural Log
         </button>
       </div>
 
@@ -313,12 +345,13 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
               key={option.id}
               type="button"
               onClick={() => setMeal(option.id)}
-              className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 meal === option.id
                   ? "bg-emerald-600 text-white"
                   : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
               }`}
             >
+              <MealIcon meal={option.id} className="h-3.5 w-3.5" />
               {option.name}
             </button>
           ))}
@@ -329,16 +362,11 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
       {mode === "search" && (
         <div className="flex flex-col gap-4">
           <div className="relative">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
+            <Search
               className="pointer-events-none absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-zinc-400"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path strokeLinecap="round" d="m20 20-3.5-3.5" />
-            </svg>
+              strokeWidth={2}
+              aria-hidden
+            />
             <input
               type="text"
               value={query}
@@ -350,9 +378,9 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-zinc-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
               >
-                ✕
+                <X className="h-4 w-4" strokeWidth={2} aria-hidden />
               </button>
             )}
           </div>
@@ -374,10 +402,15 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
               </p>
               <button
                 type="button"
-                onClick={() => setShowCustomModal(true)}
-                className="text-xs font-medium text-emerald-600 hover:underline dark:text-emerald-400"
+                onClick={() => {
+                  setCustomEstimateError(null);
+                  setCustomEstimateMissingKey(false);
+                  setShowCustomModal(true);
+                }}
+                className="flex items-center gap-0.5 text-xs font-medium text-emerald-600 hover:underline dark:text-emerald-400"
               >
-                + New custom food
+                <Plus className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+                New custom food
               </button>
             </div>
 
@@ -435,7 +468,11 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
                         }`}
                         aria-label={isAdded ? `${food.name} added` : `Add ${food.name}`}
                       >
-                        {isAdded ? "✓" : "+"}
+                        {isAdded ? (
+                          <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                        ) : (
+                          <Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                        )}
                       </button>
                     </div>
                   </li>
@@ -454,16 +491,22 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
 
           <button
             type="button"
-            onClick={() => setShowCustomModal(true)}
-            className="rounded-xl border border-dashed border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-600 transition-colors hover:border-emerald-400 hover:text-emerald-600 dark:border-zinc-700 dark:text-zinc-400"
+            onClick={() => {
+              setCustomEstimateError(null);
+              setCustomEstimateMissingKey(false);
+              setShowCustomModal(true);
+            }}
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-600 transition-colors hover:border-emerald-400 hover:text-emerald-600 dark:border-zinc-700 dark:text-zinc-400"
           >
-            + Create custom food
+            <Plus className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+            Create custom food
           </button>
 
           <Link
             href={`/meals/${meal}`}
-            className="rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-medium text-white transition-colors hover:bg-emerald-700"
           >
+            <Check className="h-4 w-4" strokeWidth={2.25} aria-hidden />
             Done adding
           </Link>
         </div>
@@ -514,14 +557,14 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
             >
               {aiLoading ? (
                 <>
-                  <svg className="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
+                  <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
                   Analyzing with AI...
                 </>
               ) : (
-                "✨ Parse Meal with AI"
+                <>
+                  <Sparkles className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+                  Parse Meal with AI
+                </>
               )}
             </button>
           </form>
@@ -556,10 +599,10 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
                         onClick={() =>
                           setAiParsedItems((prev) => prev.filter((_, i) => i !== idx))
                         }
-                        className="text-xs text-zinc-400 hover:text-red-500"
+                        className="text-zinc-400 hover:text-red-500"
                         title="Remove item"
                       >
-                        ✕
+                        <X className="h-4 w-4" strokeWidth={2} aria-hidden />
                       </button>
                     </div>
                   </div>
@@ -570,9 +613,19 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
                 type="button"
                 onClick={handleAiLogAll}
                 disabled={aiLogging}
-                className="mt-2 w-full rounded-xl bg-emerald-600 py-3 text-center text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-3 text-center text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
               >
-                {aiLogging ? "Logging items..." : `Log all ${aiParsedItems.length} items to ${meal}`}
+                {aiLogging ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} aria-hidden />
+                    Logging items...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                    Log all {aiParsedItems.length} items to {meal}
+                  </>
+                )}
               </button>
             </div>
           )}
@@ -597,7 +650,7 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
                 onClick={() => setSelectedFood(null)}
                 className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
               >
-                ✕
+                <X className="h-5 w-5" strokeWidth={2} aria-hidden />
               </button>
             </div>
 
@@ -657,8 +710,9 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
               <button
                 type="button"
                 onClick={() => handleLogFood(selectedFood, servingsMultiplier)}
-                className="flex-1 rounded-xl bg-emerald-600 py-2.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700"
               >
+                <Plus className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
                 Add to {meal}
               </button>
             </div>
@@ -679,7 +733,7 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
                 onClick={() => setShowCustomModal(false)}
                 className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
               >
-                ✕
+                <X className="h-5 w-5" strokeWidth={2} aria-hidden />
               </button>
             </div>
 
@@ -707,6 +761,40 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
                   className={inputClass}
                 />
               </div>
+
+              <button
+                type="button"
+                onClick={handleEstimateCustomNutrition}
+                disabled={estimatingCustom || !customName.trim()}
+                title={!customName.trim() ? "Enter a food name first" : undefined}
+                className="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 py-2 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400"
+              >
+                {estimatingCustom ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} aria-hidden />
+                    Estimating with AI...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+                    Estimate nutrition from name
+                  </>
+                )}
+              </button>
+
+              {customEstimateError && (
+                <div className="rounded-xl bg-red-50 p-2.5 text-xs text-red-700 dark:bg-red-950/40 dark:text-red-400">
+                  <p className="font-medium">{customEstimateError}</p>
+                  {customEstimateMissingKey && (
+                    <Link
+                      href="/profile"
+                      className="mt-1 inline-block font-semibold underline hover:text-red-800 dark:hover:text-red-300"
+                    >
+                      Open Profile Settings to add API Key →
+                    </Link>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -779,9 +867,19 @@ export function FoodSearch({ initialMeal }: { initialMeal: MealId }) {
                 <button
                   type="submit"
                   disabled={savingCustom}
-                  className="flex-1 rounded-xl bg-emerald-600 py-2.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
                 >
-                  {savingCustom ? "Saving..." : "Save Custom Food"}
+                  {savingCustom ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} aria-hidden />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                      Save Custom Food
+                    </>
+                  )}
                 </button>
               </div>
             </form>
