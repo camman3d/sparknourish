@@ -9,7 +9,7 @@ import { sql } from "drizzle-orm";
 
 config({ path: ".env.local" });
 
-const DEFAULT_ZIP = "C:\\Users\\Josh\\Downloads\\FoodData_Central_csv_2026-04-30.zip";
+const DEFAULT_ZIP = ".\\data\\FoodData_Central_csv_2026-04-30.zip";
 
 // Nutrient IDs in FoodData Central
 const NUTRIENT_ENERGY = 1008;
